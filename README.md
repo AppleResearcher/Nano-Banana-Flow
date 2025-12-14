@@ -1,5 +1,7 @@
 # 🍌 Nano Banana Flow
 
+> **只要香蕉🍌不下班，一直生图到天亮**
+>
 > 大香蕉批量生图神器 - Gemini AI 图片批量生成工具
 
 [![Version](https://img.shields.io/badge/version-1.1.1-gold.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
@@ -69,18 +71,36 @@
 - 图片自动下载到默认下载目录（或您指定的目录）
 - 文件命名格式：`page1.png`, `page2.png`, `page3.png`...
 
-## 🔧 常见问题
+## 🔧 常见问题 (FAQ)
 
-### Q: 插件无法找到输入框？
-请确保在 `https://gemini.google.com/app` 页面，且页面已完全加载。如果仍有问题，尝试刷新页面。
+### 基础功能
+- **Q: 工具主要做什么？**
+  一次性输入多行提示词，全自动逐个生成图片并下载到本地，无需人工值守。
+- **Q: 如何输入提示词？**
+  每行一个。例如：
+  ```
+  一只在太空行走的猫
+  赛博朋克风格的街道
+  ```
+- **Q: 文件名格式？**
+  按序命名：`page1.png`, `page2.png`... 保存在浏览器默认下载文件夹。
 
-### Q: 图片生成超时？
-默认超时时间为 2 分钟。如果网络较慢，建议检查网络连接。
+### 故障排除
+- **Q: 插件无法找到输入框？**
+  1. 确保在 `https://gemini.google.com/app`。
+  2. **刷新页面**（通常是因为输入框未加载完成）。
+  3. 检查网络节点是否导致了网址变更。
+- **Q: 我的操作系统界面是繁体中文为什么卡在生成第一张图片？**
+  请升级到 **v1.1.1** 及以上版本（已修复）。如仍有问题，尝试临时切换系统语言为英文/简体中文。
+- **Q: 下载下来是 .html 文件？**
+  这是因为浏览器拦截了自动下载。请在地址栏点击"锁"图标 → 网站设置 → **允许自动下载 (Automatic downloads)**。
+- **Q: 侧边栏挡住视线？**
+  点击插件图标可以收起/展开侧边栏，不会中断任务。
 
-### Q: 下载失败？
-- 确保扩展有下载权限
-- 尝试使用简单的目录名（避免特殊字符）
-- 刷新 Gemini 页面后重试
+### 下载地址
+*   **GitHub 主仓库**：[Releases 下载](https://github.com/AppleResearcher/Nano-Banana-Flow/releases) (最新版本)
+*   **国内网盘**：[百度网盘](https://pan.baidu.com/s/1I9DMwu_NQVhAqIGeqgEa7g?pwd=saec) (提取码: `saec`)
+*   **海外网盘**：[Google Drive](https://drive.google.com/file/d/1aK4ls54SSc64WcK56pQpYyKxoIEXIiUv/view?usp=sharing)
 
 ## 📁 项目结构
 
