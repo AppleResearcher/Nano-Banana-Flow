@@ -40,20 +40,26 @@ txtFileInput.addEventListener('change', (e) => {
 
 imageFileInput.addEventListener('change', (e) => {
   const files = Array.from(e.target.files);
+  console.log('[Popup] 📸 选择了图片文件:', files.length, '张');
   if (files.length === 0) return;
 
   associatedImages.clear();
   files.forEach(file => {
+    console.log('[Popup] 📸 处理文件:', file.name);
     // Regex: Match numbers at start of filename
     const match = file.name.match(/^(\d+)/);
     if (match) {
       const lineNum = parseInt(match[1], 10);
+      console.log('[Popup] 📸 匹配成功: 文件', file.name, '-> 行号', lineNum);
       if (!associatedImages.has(lineNum)) {
         associatedImages.set(lineNum, []);
       }
       associatedImages.get(lineNum).push(file);
+    } else {
+      console.warn('[Popup] ⚠️ 文件名未匹配:', file.name, '(需以数字开头，如 1_image.jpg)');
     }
   });
+  console.log('[Popup] 📸 匹配结果:', Object.fromEntries(associatedImages));
   updateMatchingUI();
 });
 
@@ -174,6 +180,10 @@ async function handleStart() {
   }
 
   console.log('[Popup] ✅ 准备全量任务集:', tasks.length);
+  // 调试：打印每个任务的图片关联情况
+  tasks.forEach((t, i) => {
+    console.log(`[Popup] 任务 ${i + 1}: 提示词="${t.prompt.substring(0, 20)}..." , 行号=${t.lineNum}, 关联图片=${t.images.length}张`);
+  });
   startGeneration(tasks, directory);
 }
 
@@ -198,7 +208,7 @@ async function startGeneration(tasks, directory) {
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     // Prepare Tasks: Convert Files to Base64 for message passing
     const processedTasks = await Promise.all(tasks.map(async (task) => {
       const imgData = await Promise.all(task.images.map(file => fileToBase64(file)));
