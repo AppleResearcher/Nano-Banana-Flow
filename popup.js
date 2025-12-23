@@ -14,34 +14,46 @@ const statusIndicator = document.getElementById('statusIndicator');
 // New Advanced Features DOM
 const importTxtBtn = document.getElementById('importTxtBtn');
 const importImagesBtn = document.getElementById('importImagesBtn');
+const importFolderBtn = document.getElementById('importFolderBtn'); // New
+
 const txtFileInput = document.getElementById('txtFileInput');
 const imageFileInput = document.getElementById('imageFileInput');
-// New DOM Element
-const matchDetails = document.getElementById('matchDetails');
+const folderInput = document.getElementById('folderInput'); // New
+const matchDetails = document.getElementById('matchDetails'); // New
+
+// State Management
+let isRunning = false;
+let associatedImages = new Map(); // LineNumber -> File[]
 
 // --- File Import Handlers ---
 
-importTxtBtn.addEventListener('click', () => txtFileInput.click());
-importImagesBtn.addEventListener('click', () => imageFileInput.click());
+if (importTxtBtn) importTxtBtn.addEventListener('click', () => txtFileInput.click());
+if (importImagesBtn) importImagesBtn.addEventListener('click', () => imageFileInput.click());
+if (importFolderBtn) importFolderBtn.addEventListener('click', () => folderInput.click()); // New
 
-txtFileInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    promptsTextarea.value = event.target.result;
-    promptsTextarea.dispatchEvent(new Event('input'));
-  };
-  reader.readAsText(file);
-});
+if (txtFileInput) {
+  txtFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      promptsTextarea.value = event.target.result;
+      promptsTextarea.dispatchEvent(new Event('input'));
+    };
+    reader.readAsText(file);
+  });
+}
 
-// 优化：追加模式，不清除已有图片
-imageFileInput.addEventListener('change', (e) => {
-  const files = Array.from(e.target.files);
+// 统一的图片处理逻辑 (追加模式)
+function processImageFiles(fileList) {
+  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
   console.log('[Popup] 📸 新增图片文件:', files.length, '张');
-  if (files.length === 0) return;
 
-  // 注意：不再调用 associatedImages.clear()，支持分批添加
+  if (files.length === 0) {
+    // 如果是文件夹导入且没图，提示一下；如果是普通选择取消，不提示
+    if (fileList.length > 0) alert('所选内容中没有图片文件');
+    return;
+  }
 
   files.forEach(file => {
     console.log('[Popup] 📸 处理文件:', file.name);
@@ -67,27 +79,43 @@ imageFileInput.addEventListener('change', (e) => {
     }
   });
 
-  // 清空 input value，允许再次选择相同文件
-  imageFileInput.value = '';
-
   console.log('[Popup] 📸 当前匹配总览:', Object.fromEntries(associatedImages));
   updateMatchingUI();
-});
+}
+
+if (imageFileInput) {
+  imageFileInput.addEventListener('change', (e) => {
+    processImageFiles(e.target.files);
+    imageFileInput.value = ''; // Reset to allow re-selecting same files
+  });
+}
+
+if (folderInput) {
+  folderInput.addEventListener('change', (e) => {
+    processImageFiles(e.target.files);
+    folderInput.value = ''; // Reset
+  });
+}
 
 function updateMatchingUI() {
+  if (!matchDetails) return; // Defensive
+
   const totalImgs = Array.from(associatedImages.values()).flat().length;
   const totalLines = associatedImages.size;
 
+  const matchStatus = document.getElementById('matchStatus');
+
   if (totalImgs > 0) {
-    matchStatus.textContent = `✅ 已关联 ${totalImgs} 张参考图 (覆盖 ${totalLines} 条任务)`;
-    matchStatus.classList.remove('hidden');
+    if (matchStatus) {
+      matchStatus.textContent = `✅ 已关联 ${totalImgs} 张参考图 (覆盖 ${totalLines} 条任务)`;
+      matchStatus.classList.remove('hidden');
+    }
 
     // 生成详细预览
     matchDetails.innerHTML = '';
     matchDetails.classList.remove('hidden');
 
-    // 只显示有图片的行
-    // 先排序 key
+    // 只显示有图片的行，按行号排序
     const sortedKeys = Array.from(associatedImages.keys()).sort((a, b) => a - b);
 
     sortedKeys.forEach(lineNum => {
@@ -104,7 +132,7 @@ function updateMatchingUI() {
     });
 
   } else {
-    matchStatus.classList.add('hidden');
+    if (matchStatus) matchStatus.classList.add('hidden');
     matchDetails.classList.add('hidden');
   }
 }
@@ -112,48 +140,53 @@ function updateMatchingUI() {
 // --- Original Logic ---
 
 // Auto-resize textarea and update count
-promptsTextarea.addEventListener('input', function () {
-  this.style.height = 'auto';
-  this.style.height = (this.scrollHeight) + 'px';
-  chrome.storage.local.set({ lastPrompts: this.value });
-  updatePromptCount(this.value);
-  // Re-sync image matching UI if prompt count changes? 
-  // For now just keep simple.
-});
+if (promptsTextarea) {
+  promptsTextarea.addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
+    chrome.storage.local.set({ lastPrompts: this.value });
+    updatePromptCount(this.value);
+  });
+}
 
 function updatePromptCount(text) {
+  if (!promptCount) return;
   const prompts = text.split('\n').filter(line => line.trim() !== '');
   promptCount.textContent = `${prompts.length} 条提示词已被识别，随时可以开始`;
 }
 
 // Clear Prompts
-clearBtn.addEventListener('click', () => {
-  if (confirm('确定要清空所有提示词吗？')) {
-    promptsTextarea.value = '';
-    promptsTextarea.style.height = 'auto';
-    chrome.storage.local.remove('lastPrompts');
-    updatePromptCount('');
-    associatedImages.clear();
-    updateMatchingUI();
-  }
-});
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    if (confirm('确定要清空所有提示词吗？')) {
+      promptsTextarea.value = '';
+      promptsTextarea.style.height = 'auto';
+      chrome.storage.local.remove('lastPrompts');
+      updatePromptCount('');
+      associatedImages.clear();
+      updateMatchingUI();
+    }
+  });
+}
 
 // Save directory to storage
-directoryInput.addEventListener('input', function () {
-  chrome.storage.local.set({ saveDirectory: this.value });
-});
+if (directoryInput) {
+  directoryInput.addEventListener('input', function () {
+    chrome.storage.local.set({ saveDirectory: this.value });
+  });
+}
 
 // Restore state on load
 document.addEventListener('DOMContentLoaded', () => {
   chrome.storage.local.get(['lastPrompts', 'saveDirectory'], (result) => {
-    if (result.lastPrompts) {
+    if (result.lastPrompts && promptsTextarea) {
       promptsTextarea.value = result.lastPrompts;
       // Trigger resize
       promptsTextarea.style.height = 'auto';
       promptsTextarea.style.height = (promptsTextarea.scrollHeight) + 'px';
       updatePromptCount(promptsTextarea.value);
     }
-    if (result.saveDirectory) {
+    if (result.saveDirectory && directoryInput) {
       directoryInput.value = result.saveDirectory;
     }
   });
@@ -162,15 +195,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Unified Action Button Click Handler
-actionBtn.addEventListener('click', async () => {
-  if (isRunning) {
-    // Stop Logic
-    handleStop();
-  } else {
-    // Start Logic
-    handleStart();
-  }
-});
+if (actionBtn) {
+  actionBtn.addEventListener('click', async () => {
+    if (isRunning) {
+      handleStop();
+    } else {
+      handleStart();
+    }
+  });
+}
 
 async function handleStart() {
   console.log('[Popup] 📌 handleStart 被调用');
@@ -183,16 +216,12 @@ async function handleStart() {
     return;
   }
 
-  // Get raw lines to preserve empty lines for indexing if needed, 
-  // but usually users want 1-based index matching visible lines.
   const lines = input.split('\n');
   const tasks = [];
 
-  let validTaskCount = 0;
   lines.forEach((line, index) => {
     const prompt = line.trim();
     if (prompt) {
-      validTaskCount++;
       const lineNum = index + 1;
       tasks.push({
         prompt: prompt,
@@ -228,7 +257,7 @@ async function handleStop() {
     if (response && response.success) {
       resetUI();
       showStatus('Ready', false);
-      currentStatus.textContent = '任务已中止';
+      if (currentStatus) currentStatus.textContent = '任务已中止';
     }
   } catch (error) {
     console.error('停止任务失败:', error);
@@ -285,29 +314,31 @@ function fileToBase64(file) {
 // UI Helpers
 function setRunningState(running) {
   isRunning = running;
+  if (!actionBtn) return;
   const btnIcon = actionBtn.querySelector('.btn-icon');
   const btnText = actionBtn.querySelector('.btn-text');
 
   if (running) {
     actionBtn.classList.add('stop-mode');
-    btnIcon.textContent = '⏹';
-    btnText.textContent = '停止任务';
+    if (btnIcon) btnIcon.textContent = '⏹';
+    if (btnText) btnText.textContent = '停止任务';
   } else {
     actionBtn.classList.remove('stop-mode');
-    btnIcon.textContent = '🎨';
-    btnText.textContent = '批量生成';
+    if (btnIcon) btnIcon.textContent = '🎨';
+    if (btnText) btnText.textContent = '批量生成';
   }
 }
 
 function showProgress(current, total, message) {
-  progressArea.classList.remove('hidden');
+  if (progressArea) progressArea.classList.remove('hidden');
   const percentage = total > 0 ? (current / total) * 100 : 0;
-  progressBar.style.width = percentage + '%';
-  progressCount.textContent = `${current} / ${total}`;
-  currentStatus.textContent = message;
+  if (progressBar) progressBar.style.width = percentage + '%';
+  if (progressCount) progressCount.textContent = `${current} / ${total}`;
+  if (currentStatus) currentStatus.textContent = message;
 }
 
 function showError(msg) {
+  if (!errorMsg) return;
   errorMsg.textContent = msg;
   errorMsg.classList.remove('hidden');
   setTimeout(() => errorMsg.classList.add('hidden'), 5000);
@@ -319,10 +350,11 @@ function resetUI() {
 }
 
 function hideError() {
-  errorMsg.classList.add('hidden');
+  if (errorMsg) errorMsg.classList.add('hidden');
 }
 
 function showStatus(text, active) {
+  if (!statusIndicator) return;
   const dot = statusIndicator.querySelector('.dot');
   const txt = statusIndicator.querySelector('.status-text');
 
@@ -349,7 +381,7 @@ chrome.runtime.onMessage.addListener((message) => {
     if (current === total) {
       setTimeout(() => {
         resetUI();
-        currentStatus.textContent = '全部完成！';
+        if (currentStatus) currentStatus.textContent = '全部完成！';
       }, 1000);
     }
   } else if (message.action === 'generationError') {
