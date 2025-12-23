@@ -127,7 +127,8 @@ function updateMatchingUI() {
       row.style.color = '#ccc';
 
       const filenames = imgs.map(f => f.name).join(', ');
-      row.textContent = `Line ${lineNum}: [${imgs.length}图] ${filenames}`;
+      // 这里的 lineNum 实际上是 Task ID
+      row.textContent = `Task ${lineNum}: [${imgs.length}图] ${filenames}`;
       matchDetails.appendChild(row);
     });
 
@@ -218,15 +219,18 @@ async function handleStart() {
 
   const lines = input.split('\n');
   const tasks = [];
+  let validLineCount = 0; // 逻辑行号（即任务序号）
 
   lines.forEach((line, index) => {
     const prompt = line.trim();
     if (prompt) {
-      const lineNum = index + 1;
+      validLineCount++; // 只有非空行才增加任务计数
+      const taskIndex = validLineCount;
+
       tasks.push({
         prompt: prompt,
-        lineNum: lineNum,
-        images: associatedImages.get(lineNum) || []
+        lineNum: taskIndex, // 使用逻辑索引
+        images: associatedImages.get(taskIndex) || [] // 按逻辑索引取图
       });
     }
   });
