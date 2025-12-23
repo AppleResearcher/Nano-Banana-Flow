@@ -663,65 +663,22 @@ async function waitForIdle() {
     });
 }
 
-// ========== 核心函数：上传图片到 Gemini (混合方案) ==========
+// ========== 核心函数：上传图片到 Gemini (粘贴事件方案) ==========
 async function uploadImagesToGemini(base64Images) {
-    console.log('[Upload] 🚀 开始上传流程，共', base64Images.length, '张图片');
+    console.log('[Upload] 🎯 使用 Paste 事件方案，共', base64Images.length, '张图片');
 
-    // 混合策略：点击"上传文件"按钮 + 拦截动态创建的 input
+    // 策略：模拟 Ctrl+V 粘贴操作
+    // 原理：Gemini 原生支持粘贴图片，且粘贴事件的安全检查通常比文件选择器宽松
 
-    // Step 1: 查找"上传文件"按钮
-    console.log('[Upload] 步骤1：查找"上传文件"按钮...');
-    const uploadButton = findUploadButton();
-
-    if (!uploadButton) {
-        console.warn('[Upload] ⚠️ 未找到上传按钮，尝试拖放方案...');
-        return await uploadViaDropEvent(base64Images);
+    // 1. 找到输入框
+    const inputEl = document.querySelector('div[contenteditable="true"]');
+    if (!inputEl) {
+        throw new Error('[Upload] ❌ 未找到可编辑输入框');
     }
 
-    console.log('[Upload] ✅ 找到上传按钮');
+    console.log('[Upload] ✅ 找到输入框');
 
-    // Step 2: 设置 MutationObserver 监听 input 创建
-    console.log('[Upload] 步骤2：监听 input 创建...');
-
-    const fileInput = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            observer.disconnect();
-            console.warn('[Upload] ⏱️ 等待 input 超时，尝试拖放方案');
-            resolve(null);
-        }, 5000);
-
-        const observer = new MutationObserver(() => {
-            const inputs = document.querySelectorAll('input[type="file"]');
-            for (const input of inputs) {
-                // 查找未被处理过的新 input
-                if (!input.dataset.processed) {
-                    console.log('[Upload] ✅ 检测到新 input!');
-                    clearTimeout(timeout);
-                    observer.disconnect();
-                    input.dataset.processed = 'true';
-                    resolve(input);
-                    return;
-                }
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
-        // 点击按钮触发
-        console.log('[Upload] 🖱️ 点击上传按钮...');
-        uploadButton.click();
-    });
-
-    // 如果没找到 input，回退到拖放
-    if (!fileInput) {
-        return await uploadViaDropEvent(base64Images);
-    }
-
-    // Step 3: 转换文件
-    console.log('[Upload] 步骤3：转换文件...');
+    // 2. 转换文件
     const files = await Promise.all(base64Images.map(async (b64, idx) => {
         const resp = await fetch(b64);
         const blob = await resp.blob();
@@ -730,87 +687,48 @@ async function uploadImagesToGemini(base64Images) {
 
     console.log('[Upload] ✅ 已准备', files.length, '个文件');
 
-    // Step 4: 注入文件到 input
-    console.log('[Upload] 步骤4：注入文件到 input...');
-    const dt = new DataTransfer();
-    files.forEach(f => dt.items.add(f));
-    fileInput.files = dt.files;
+    // 3. 逐个粘贴图片（多图分批处理）
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        console.log(`[Upload] 📋 粘贴第 ${i + 1}/${files.length} 张图片...`);
 
-    // Step 5: 触发事件
-    console.log('[Upload] 步骤5：触发 change 事件...');
-    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-    fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+        // 聚焦输入框
+        inputEl.focus();
+        await sleep(100);
 
-    // Step 6: 等待处理
-    console.log('[Upload] ⏳ 等待 Gemini 处理...');
-    await sleep(3000);
+        // 构造 DataTransfer
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
 
-    console.log('[Upload] ✅ 上传流程完成');
-}
+        // 创建粘贴事件
+        const pasteEvent = new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: dataTransfer
+        });
 
-// 查找"上传文件"按钮
-function findUploadButton() {
-    // 方法1：通过文本内容查找
-    const allElements = document.querySelectorAll('button, [role="menuitem"], div[class*="menu"]');
+        // 触发事件
+        inputEl.dispatchEvent(pasteEvent);
 
-    for (const elem of allElements) {
-        const text = elem.textContent?.trim() || '';
-        if (text === '上传文件' || text === 'Upload file' || text === '上傳文件') {
-            console.log('[Upload] 通过文本找到按钮:', text);
-            return elem;
-        }
+        console.log(`[Upload] ✅ 第 ${i + 1} 张已触发粘贴事件`);
+
+        // 等待 Gemini 处理（预览图出现）
+        await sleep(1500);
     }
 
-    // 方法2：通过 class 查找 (Angular Material 特征)
-    const matButtons = document.querySelectorAll('[class*="menu-text"]');
-    for (const btn of matButtons) {
-        if (btn.textContent?.includes('上传文件')) {
-            console.log('[Upload] 通过 class 找到按钮');
-            return btn.closest('button') || btn.parentElement;
-        }
-    }
+    console.log('[Upload] ⏳ 等待所有图片加载完成...');
+    await sleep(2000);
 
-    return null;
+    console.log('[Upload] ✅ 粘贴上传完成');
 }
 
-// 备用：拖放方案
-async function uploadViaDropEvent(base64Images) {
-    console.log('[Upload] 🎯 使用拖放备用方案');
-
-    const inputArea = findInputArea();
-    if (!inputArea) {
-        throw new Error('[Upload] ❌ 未找到输入区域');
-    }
-
-    const files = await Promise.all(base64Images.map(async (b64, idx) => {
-        const resp = await fetch(b64);
-        const blob = await resp.blob();
-        return new File([blob], `ref_${idx + 1}.png`, { type: 'image/png' });
-    }));
-
-    const dataTransfer = new DataTransfer();
-    files.forEach(f => dataTransfer.items.add(f));
-
-    const dropEvent = new DragEvent('drop', {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer: dataTransfer
-    });
-
-    inputArea.dispatchEvent(dropEvent);
-    await sleep(3000);
-
-    console.log('[Upload] ✅ 拖放完成');
-}
-
-// 查找输入区域
+// 查找输入区域（保留备用）
 function findInputArea() {
     const selectors = [
         'div[contenteditable="true"]',
         '[role="textbox"]',
         'textarea',
-        '.input-area',
-        '[data-placeholder]'
+        '.input-area'
     ];
 
     for (const sel of selectors) {
@@ -821,7 +739,7 @@ function findInputArea() {
         }
     }
 
-    console.log('[Upload] ⚠️ 使用 body 作为拖放目标');
+    console.log('[Upload] ⚠️ 使用 body 作为备用目标');
     return document.body;
 }
 
