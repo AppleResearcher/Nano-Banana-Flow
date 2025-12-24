@@ -29,7 +29,11 @@ let associatedImages = new Map(); // LineNumber -> File[]
 
 if (importTxtBtn) importTxtBtn.addEventListener('click', () => txtFileInput.click());
 if (importImagesBtn) importImagesBtn.addEventListener('click', () => imageFileInput.click());
-if (importFolderBtn) importFolderBtn.addEventListener('click', () => folderInput.click()); // New
+// if (importFolderBtn) importFolderBtn.addEventListener('click', () => folderInput.click()); // Old Folder Import
+if (importFolderBtn) importFolderBtn.addEventListener('click', () => {
+  // Show tooltip-like alert as this feature is placeholder for now
+  alert('✨ 提示词增强功能\n\n我们将很快推出此功能！\n开启后，插件会为您提供多种预设的提示词优化场景（如：色彩增强、细节补充、风格化等），自动将您的简单提示词优化为高质量的 AI 绘图指令。\n\n敬请期待！🚀');
+});
 
 if (txtFileInput) {
   txtFileInput.addEventListener('change', (e) => {
@@ -105,12 +109,12 @@ function updateMatchingUI() {
 
   const matchStatus = document.getElementById('matchStatus');
 
-  if (totalImgs > 0) {
-    if (matchStatus) {
-      matchStatus.textContent = `✅ 已关联 ${totalImgs} 张参考图 (覆盖 ${totalLines} 条任务)`;
-      matchStatus.classList.remove('hidden');
-    }
+  if (matchStatus) {
+    matchStatus.textContent = `✅ 已关联 ${totalImgs} 张参考图 (覆盖 ${totalLines} 条任务)`;
+    matchStatus.classList.remove('hidden');
+  }
 
+  if (totalImgs > 0) {
     // 生成详细预览
     matchDetails.innerHTML = '';
     matchDetails.classList.remove('hidden');
@@ -122,18 +126,14 @@ function updateMatchingUI() {
       const imgs = associatedImages.get(lineNum);
       const row = document.createElement('div');
       row.className = 'match-row';
-      row.style.fontSize = '12px';
-      row.style.marginTop = '4px';
-      row.style.color = '#ccc';
 
       const filenames = imgs.map(f => f.name).join(', ');
       // 这里的 lineNum 实际上是 Task ID
-      row.textContent = `Task ${lineNum}: [${imgs.length}图] ${filenames}`;
+      row.textContent = `提示词${lineNum}: [${imgs.length}图] ${filenames}`;
       matchDetails.appendChild(row);
     });
 
   } else {
-    if (matchStatus) matchStatus.classList.add('hidden');
     matchDetails.classList.add('hidden');
   }
 }
@@ -193,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   restoreStatus();
+  updateMatchingUI(); // Initialize match status visibility
 });
 
 // Unified Action Button Click Handler
@@ -410,3 +411,126 @@ async function restoreStatus() {
     resetUI();
   }
 }
+
+// Dynamic Footer Content Update
+async function updateFooterContent() {
+  const dynamicFooter = document.getElementById('dynamicFooter');
+  const footerQrImg = document.getElementById('footerQrImg');
+  const footerText = document.getElementById('footerText');
+  const footerLink = document.getElementById('footerLink');
+
+  if (!dynamicFooter || !footerQrImg || !footerText || !footerLink) return;
+
+  const extVersion = chrome.runtime.getManifest().version;
+  const configUrl = `https://gt.topgpt.us/nbf_config.json?t=${Date.now()}&v=${extVersion}`;
+
+  // Cache Configuration
+  const CACHE_KEY = 'nbf_footer_cache';
+  // Default fallback local duration (3 hours) if server doesn't return one
+  const DEFAULT_CACHE_DURATION = 3 * 60 * 60 * 1000;
+
+  // Helper to render config to UI
+  const applyConfigToUI = (config) => {
+    if (!config.show) return;
+
+    if (config.qrCodeUrl) {
+      footerQrImg.src = config.qrCodeUrl;
+    }
+
+    if (config.message) {
+      footerText.textContent = config.message;
+    }
+
+    // Link 1
+    if (config.linkUrl) {
+      footerLink.href = config.linkUrl;
+      footerLink.textContent = config.linkText || '点击查看';
+      footerLink.classList.remove('hidden');
+    } else {
+      footerLink.classList.add('hidden');
+    }
+
+    // Link 2
+    const footerLink2 = document.getElementById('footerLink2');
+    if (footerLink2) {
+      if (config.linkUrl2) {
+        footerLink2.href = config.linkUrl2;
+        footerLink2.textContent = config.linkText2 || '点击查看';
+        footerLink2.classList.remove('hidden');
+
+        // Apply Configurable Styles
+        if (config.link2Color) footerLink2.style.color = config.link2Color;
+        footerLink2.style.fontWeight = config.link2Bold ? '700' : 'normal';
+      } else {
+        footerLink2.classList.add('hidden');
+      }
+    }
+
+    const footerLink3 = document.getElementById('footerLink3');
+    if (footerLink3) {
+      if (config.linkUrl3) {
+        footerLink3.href = config.linkUrl3;
+        footerLink3.textContent = config.linkText3 || '点击查看';
+        footerLink3.classList.remove('hidden');
+
+        // Apply Configurable Styles
+        if (config.link3Color) footerLink3.style.color = config.link3Color;
+        footerLink3.style.fontWeight = config.link3Bold ? '700' : 'normal';
+      } else {
+        footerLink3.classList.add('hidden');
+      }
+    }
+  };
+
+  try {
+    // 1. Try Cache First
+    const getStorage = (key) => new Promise(resolve => chrome.storage.local.get(key, resolve));
+    const cacheResult = await getStorage(CACHE_KEY);
+
+    if (cacheResult[CACHE_KEY]) {
+      const { timestamp, data } = cacheResult[CACHE_KEY];
+
+      // Determine duration: Use server-provided 'cacheDuration' (seconds) * 1000, or fallback to local default
+      let validDuration = DEFAULT_CACHE_DURATION;
+      if (data && typeof data.cacheDuration === 'number') {
+        validDuration = data.cacheDuration * 1000; // Convert sec to ms
+      }
+
+      // Check if cache is valid with the determined duration
+      if (Date.now() - timestamp < validDuration) {
+        console.log(`[Popup] Using cached footer config (Valid for ${validDuration / 1000 / 60} mins)`);
+        applyConfigToUI(data);
+        return; // Stop execution, skip fetch
+      } else {
+        console.log('[Popup] Cache expired, fetching new config...');
+      }
+    }
+
+    // 2. Fetch from Network
+    const response = await fetch(configUrl);
+    if (!response.ok) {
+      throw new Error(`Fetch failed: ${response.status}`);
+    }
+
+    const config = await response.json();
+
+    // 3. Update UI
+    applyConfigToUI(config);
+
+    // 4. Save to Cache
+    chrome.storage.local.set({
+      [CACHE_KEY]: {
+        timestamp: Date.now(),
+        data: config
+      }
+    });
+
+  } catch (error) {
+    // If fetch fails, try to use stale cache if available? Or just silent fail.
+    // For now silent fail to keep default UI.
+    console.warn('[Popup] 动态更新跳过 (保持默认):', error);
+  }
+}
+
+// Init Dynamic Content
+document.addEventListener('DOMContentLoaded', updateFooterContent);

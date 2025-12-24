@@ -12,6 +12,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[Content] 📨 收到消息:', message.action);
 
     if (message.action === 'generateImage') {
+        // 重置状态，确保新任务不会被旧的中止标志拦截
+        isStopped = false;
         console.log('[Content] 🎨 开始处理生成请求:', message.prompt?.substring(0, 30) + '...');
         handleGenerateImage(message.prompt, message.images || [], message.directory, message.index, message.total)
             .then(result => {

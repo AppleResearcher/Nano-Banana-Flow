@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "大香蕉批量生图 (Nano Banana Flow)",
-    "version": "1.2.1",
+    "version": "1.2.0",
     "short_name": "大香蕉生图",
     "description": "每行一个提示词（对应一张图片），本工具将逐条进行生成",
     "permissions": [
@@ -12,7 +12,8 @@
     ],
     "host_permissions": [
         "https://gemini.google.com/*",
-        "https://*.googleusercontent.com/*"
+        "https://*.googleusercontent.com/*",
+        "https://gt.topgpt.us/*"
     ],
     "action": {
         "default_popup": "popup.html",

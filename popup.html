@@ -25,7 +25,7 @@
         </h1>
         <h2 class="title-cn">
           大香蕉批量生图神器
-          <span class="version-badge">v1.2.1</span>
+          <span class="version-badge">v1.2.0</span>
         </h2>
       </div>
 
@@ -50,21 +50,22 @@
       <div class="input-group prompt-group">
         <label for="promptInput">
           <div class="label-with-actions">
-            <span><span class="icon">✨</span> 提示词列表 (每行一张)</span>
             <div class="import-tools">
-              <button id="importTxtBtn" class="tool-btn" title="导入 TXT 文件">📄 导入TXT</button>
-              <button id="importImagesBtn" class="tool-btn" title="选择单张或多张图片 (按住 Shift/Command 多选)">🖼️ 选择图片</button>
-              <button id="importFolderBtn" class="tool-btn" title="导入整个文件夹的图片">📂 导入文件夹</button>
+              <button id="importTxtBtn" class="tool-btn" title="导入提示词文件">📄 导入提示词</button>
+              <button id="importImagesBtn" class="tool-btn" title="选择单张或多张图片，支持自动匹配">🖼️ 导入图片</button>
+              <button id="importFolderBtn" class="tool-btn" title="智能优化提示词场景，助力生成更完美图像 (暂未发布)">🌟 提示词增强</button>
             </div>
           </div>
         </label>
-        <textarea id="promptInput" class="glass-input prompt-textarea" placeholder="在此输入提示词，一段对应一张图片…
+        <textarea id="promptInput" class="glass-input prompt-textarea" placeholder="在此输入提示词，一行对应一张图片。
+配合&quot;导入图片&quot;使用时，请确保图片文件名以序号开头 (如: 1_xxx.jpg)，将自动匹配到第1行提示词。
+
 示例：
 一只可爱的小猫
 一只在吃香蕉的大猩猩"></textarea>
+        <div id="promptCount" class="prompt-count">0 条提示词已被识别，随时可以开始</div>
         <div id="matchStatus" class="match-status hidden">已关联 0 张参考图</div>
         <div id="matchDetails" class="match-details hidden"></div>
-        <div id="promptCount" class="prompt-count">0 条提示词已被识别，随时可以开始</div>
 
         <!-- Hidden Inputs -->
         <input type="file" id="txtFileInput" accept=".txt" style="display: none;">
@@ -100,12 +101,24 @@
     </main>
 
     <!-- Footer Area (Relative) -->
-    <footer class="footer-area">
+    <footer id="dynamicFooter" class="footer-area">
       <div class="qr-section">
-        <img src="images/qr.png" alt="Join Group" class="qr-code">
+        <img id="footerQrImg" src="images/qr.png" alt="Join Group" class="qr-code">
         <div class="qr-info">
-          <span class="qr-text-large">扫码加微会拉你进群（暗号：大香蕉）</span>
-          <a href="https://gt.topgpt.us" target="_blank" class="website-link-large">官网：https://gt.topgpt.us</a>
+          <!-- Text Area: Fixed + Dynamic -->
+          <div class="qr-text-group">
+            <span class="qr-text-large">扫码加微会拉你进群（暗号：大香蕉）</span>
+            <span id="footerText" class="qr-text-large" style="margin-top: 2px; color: var(--accent-gold);"></span>
+          </div>
+
+          <!-- Links Area -->
+          <div class="link-group" style="display: flex; gap: 6px; margin-top: 4px;">
+            <a id="footerLink" href="https://gt.topgpt.us" target="_blank"
+              class="website-link-large">官网：https://gt.topgpt.us</a>
+            <a id="footerLink2" href="#" target="_blank" class="website-link-large hidden"></a>
+            <a id="footerLink3" href="#" target="_blank" class="website-link-large hidden"
+              style="color: #ffffff; font-weight: 700;"></a>
+          </div>
         </div>
       </div>
     </footer>

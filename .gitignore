@@ -14,3 +14,8 @@ backups/
 # Temporary files
 *.backup
 *.tmp
+# Local/Private Configs & Guides
+cloudflare_worker.js
+CLOUDFLARE_GUIDE.md
+nbf_config.json
+server_config_example.json

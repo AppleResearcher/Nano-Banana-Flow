@@ -19,8 +19,14 @@ A powerful Chrome extension designed to help you batch generate images on Gemini
 - 📥 **Auto Download**: Automatically download images after generation, supporting custom save directories.
 - 📄 **TXT Import**: [v1.2.0+] One-click import of massive prompts from local TXT files.
 - 🖼️ **Image-to-Image**: [v1.2.0+] Full support for reference images!
-    - **Folder Import**: Import an entire folder of reference images.
-    - **Smart Matching**: Auto-associate by task index (e.g., `1_xxx.jpg` for Task 1).
+    3.  **Import Reference Images (Optional)**: Click "🖼️ Import Images" if you need image-to-image generation.
+        *   **Flexible Naming Rules**: Just ensure the filename **starts with a number**, which corresponds to the line number of the prompt.
+        *   **Examples**:
+            *   `1_cat.jpg` -> Matches the 1st prompt
+            *   `1-photo.png` -> Matches the 1st prompt
+            *   `01.jpeg` -> Matches the 1st prompt
+            *   `2_dog.webp` -> Matches the 2nd prompt
+        *   Supports all common formats like jpg, png, webp, gif, etc.
     - **Visual Feedback**: Preview associated images for each task before generation.
 - 📊 **Real-time Progress**: Intuitive progress bar showing generation status.
 - 💾 **Smart Save**: Automatically saves your last input prompts
@@ -137,10 +143,10 @@ Nano-Banana-Flow/
 
 ## 📝 Changelog
 
-### v1.2.0 (2025-12-22)
-- ✅ **TXT Import Support**: One-click bulk loading of prompts.
-- ✅ **Image-to-Image Automation**: Match local reference images via filename line numbers.
-- ✅ **Workflow Optimization**: Simulated image uploading with state detection for Gemini.
+### v1.2.0 (2025-12-24)
+- ✅ **Compact UI**: Redesigned for higher information density and better aesthetics.
+- ✅ **Smart Image Matching**: Auto-match reference images via filename (e.g., `1_cat.jpg`).
+- ✅ **Dynamic Footer**: Cloudflare Worker integration for real-time announcements and tool links.
 
 ### v1.1.1 (2025-12-14)
 - ✅ Added full support for Traditional Chinese (Hong Kong, Macau, Taiwan) interface
@@ -160,9 +166,18 @@ Nano-Banana-Flow/
 - Auto download functionality
 - Progress display
 
-## 📄 License
+## 📄 License & Attribution
 
-MIT License
+This project is released under the **MIT License**. We encourage technical exchange and innovation; you are free to use, modify, and distribute the code within the scope of the license.
+
+**⚠️ Attribution Requirement:**
+
+If you build upon this project, modify it, or use its core code in your release, **you must explicitly credit the source** in your product description, README, or copyright notice, following international open source standards, including a link to the original GitHub repository:
+
+> **Original Project:** [Nano Banana Flow](https://github.com/AppleResearcher/Nano-Banana-Flow)
+> **Author:** AppleResearcher
+
+Respect the work of developers and help build a healthy open source ecosystem.
 
 ---
 
