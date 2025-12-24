@@ -17,5 +17,6 @@ backups/
 # Local/Private Configs & Guides
 cloudflare_worker.js
 CLOUDFLARE_GUIDE.md
+GEMINI_PRO_DEV_GUIDE.md
 nbf_config.json
 server_config_example.json
