@@ -3,7 +3,8 @@
 > **只要香蕉🍌不下班，一直生图到天亮**
 >
 > 大香蕉批量生图神器 - Gemini AI 图片批量生成工具
-> 我的博客分享更多AI工具和教程：https://gt.topgpt.us
+> 
+> 【我的博客】分享更多AI工具和教程：https://gt.topgpt.us
 
 ![Nano Banana Flow Preview](https://gt.topgpt.us/upload/v1.2.0.png)
 
@@ -156,11 +157,10 @@ Nano-Banana-Flow/
 - 进度显示功能
 
 ## ☕ 请我喝杯咖啡
-
-如果这个工具帮助到了你，欢迎请我喝杯咖啡，你的支持是我持续更新的动力！
-
-![赞赏码](https://gt.topgpt.us/upload/qr2.png)
+🎉🎉🎉扫码加微，拉你入氛围超级棒的AI交流群
 ![入群码](https://gt.topgpt.us/upload/qr1.png)
+☕️☕️☕️如果这个工具帮助到了你，欢迎请我喝杯咖啡，你的支持是我持续更新的动力！
+![赞赏码](https://gt.topgpt.us/upload/qr2.png)
 
 ---
 
