@@ -156,11 +156,32 @@ Nano-Banana-Flow/
 - 自动下载功能
 - 进度显示功能
 
-## ☕ 请我喝杯咖啡
-🎉🎉🎉扫码加微，拉你入氛围超级棒的AI交流群
-![入群码](https://gt.topgpt.us/upload/qr1.png)
-☕️☕️☕️如果这个工具帮助到了你，欢迎请我喝杯咖啡，你的支持是我持续更新的动力！
-![赞赏码](https://gt.topgpt.us/upload/qr2.png)
+
+## 🎉 加入高质量 AI 交流群
+
+> **扫码添加微信，我拉你进群**  
+> 氛围友好 · 高密度交流 · 不水群 · 长期共建 🤝
+
+<div align="center">
+  <img src="https://gt.topgpt.us/upload/qr1.png" alt="AI交流群二维码" width="260" />
+</div>
+
+---
+
+## ☕ 支持作者 · 请我喝杯咖啡
+
+如果这个工具 / 内容 **对你有帮助**，  
+欢迎请我喝杯咖啡 ☕️  
+你的支持是我 **持续更新和深度创作** 的动力。
+
+<div align="center">
+  <img src="https://gt.topgpt.us/upload/qr2.png" alt="赞赏二维码" width="260" />
+</div>
+
+---
+
+🙏 感谢你的支持与同行  
+🤖 **一起把 AI 用到更高级的地方**
 
 ---
 
