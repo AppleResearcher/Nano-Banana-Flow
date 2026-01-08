@@ -7,6 +7,7 @@
   <title>Nano Banana Flow</title>
   <link rel="stylesheet" href="popup.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="lib/watermark.js"></script>
 </head>
 
 <body>
@@ -16,7 +17,7 @@
     <header class="header">
       <!-- Theme Image (Small, Top-Right) -->
       <div class="header-banana">
-        <img src="images/nano_banana_theme_bg.png" alt="Nano Banana Theme" class="header-image">
+        <img src="images/nano_banana_theme_bg.webp" alt="Nano Banana Theme" class="header-image">
       </div>
 
       <div class="logo-area">
@@ -63,6 +64,16 @@
 示例：
 一只可爱的小猫
 一只在吃香蕉的大猩猩"></textarea>
+        <!-- Progress Section (Relocated) -->
+        <div id="progressArea" class="progress-section hidden">
+          <div class="progress-info">
+            <span id="currentStatus">正在生成...</span>
+            <span id="progressCount">0/0</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="progressBar" class="progress-bar-fill"></div>
+          </div>
+        </div>
         <div id="promptCount" class="prompt-count">0 条提示词已被识别，随时可以开始</div>
         <div id="matchStatus" class="match-status hidden">已关联 0 张参考图</div>
         <div id="matchDetails" class="match-details hidden"></div>
@@ -71,6 +82,7 @@
         <input type="file" id="txtFileInput" accept=".txt" style="display: none;">
         <input type="file" id="imageFileInput" accept="image/*" multiple style="display: none;">
         <input type="file" id="folderInput" webkitdirectory directory style="display: none;">
+        <input type="file" id="manualWatermarkInput" accept="image/*" multiple style="display: none;">
       </div>
 
       <!-- Action Area -->
@@ -79,31 +91,44 @@
           <span class="btn-icon">🎨</span>
           <span class="btn-text">批量生成</span>
         </button>
+        <button id="openLabBtn" class="btn-wr">
+          <span class="btn-icon">⚡</span>
+          <span class="btn-text">去水印</span>
+        </button>
         <button id="clearBtn" class="btn-secondary" title="清空提示词">
           <span class="btn-icon">🗑️</span>
           <span class="btn-text">清空</span>
         </button>
       </div>
+      <div id="labStatus" class="lab-status hidden">正在处理: 0/0</div>
 
-      <!-- Progress Section (Overlay/Integrated) -->
-      <div id="progressArea" class="progress-section hidden">
-        <div class="progress-info">
-          <span id="currentStatus">正在生成...</span>
-          <span id="progressCount">0/0</span>
-        </div>
-        <div class="progress-bar-bg">
-          <div id="progressBar" class="progress-bar-fill"></div>
-        </div>
-      </div>
+
 
       <!-- Error Message -->
       <div id="errorMsg" class="error-card hidden"></div>
+
+      <!-- Watermark Prompt Modal -->
+      <div id="watermarkModal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <h3>🎉 下载完成！</h3>
+          <p>是否需要对下载的图片进行去水印处理？</p>
+          <p class="modal-hint">点击"是"后，请手动点击插件上的<strong>「⚡去水印」</strong>按钮选择文件。</p>
+          <label class="modal-checkbox">
+            <input type="checkbox" id="dontRemindCheckbox">
+            <span>后续不再提醒</span>
+          </label>
+          <div class="modal-buttons">
+            <button id="modalNoBtn" class="modal-btn modal-btn-secondary">否，稍后再说</button>
+            <button id="modalYesBtn" class="modal-btn modal-btn-primary">是，我知道了</button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <!-- Footer Area (Relative) -->
     <footer id="dynamicFooter" class="footer-area">
       <div class="qr-section">
-        <img id="footerQrImg" src="images/qr.png" alt="Join Group" class="qr-code">
+        <img id="footerQrImg" src="images/qr.webp" alt="Join Group" class="qr-code">
         <div class="qr-info">
           <!-- Text Area: Fixed + Dynamic -->
           <div class="qr-text-group">
@@ -112,9 +137,9 @@
           </div>
 
           <!-- Links Area -->
-          <div class="link-group" style="display: flex; gap: 6px; margin-top: 4px;">
-            <a id="footerLink" href="https://gt.topgpt.us" target="_blank"
-              class="website-link-large">官网：https://gt.topgpt.us</a>
+          <div class="link-group">
+            <a id="footerLink" href="https://gt.topgpt.us/" target="_blank" class="website-link-large"
+              style="color: #ffeb3b; font-weight: 700;">🌍收藏我的博客获取更多AI经验与工具</a>
             <a id="footerLink2" href="#" target="_blank" class="website-link-large hidden"></a>
             <a id="footerLink3" href="#" target="_blank" class="website-link-large hidden"
               style="color: #ffffff; font-weight: 700;"></a>

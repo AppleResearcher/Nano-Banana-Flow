@@ -8,6 +8,7 @@ let taskQueue = [];
 let isProcessing = false;
 let currentTaskIndex = 0;
 let currentTabId = null;
+let pendingWatermarkPrompt = false; // 新增: 标记是否有待处理的去水印提示
 
 // 监听安装事件
 chrome.runtime.onInstalled.addListener(() => {
@@ -112,6 +113,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false;
     }
 
+    // --- 检查是否有待处理的去水印提示 ---
+    if (request.action === 'checkWatermarkPrompt') {
+        sendResponse({ pending: pendingWatermarkPrompt });
+        return false;
+    }
+
+    // --- 清除待处理的去水印提示标记 ---
+    if (request.action === 'clearWatermarkPrompt') {
+        pendingWatermarkPrompt = false;
+        sendResponse({ success: true });
+        return false;
+    }
+
     // 未知消息类型
     console.warn('[BG] 未知消息类型:', request.action);
     return false;
@@ -124,9 +138,15 @@ async function processQueue() {
         console.log('✅ [BG] 所有任务完成！');
         isProcessing = false;
         currentTabId = null;
+        pendingWatermarkPrompt = true; // 标记需要弹出去水印提示
 
         // 通知 popup 完成
         notifyProgress(taskQueue.length, taskQueue.length, '全部完成！');
+
+        // 直接通知 popup 显示去水印弹窗
+        chrome.runtime.sendMessage({ action: 'downloadComplete' }).catch(() => {
+            console.log('[BG] Popup 可能已关闭，稍后打开时会检查 pendingWatermarkPrompt');
+        });
         return;
     }
 

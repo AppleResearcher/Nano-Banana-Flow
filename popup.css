@@ -324,7 +324,25 @@ body {
   /* Reduced from 24px */
   z-index: 10;
   display: flex;
-  gap: 12px;
+  gap: 8px;
+}
+
+.btn-gold,
+.btn-wr,
+.btn-secondary {
+  flex: 1;
+  padding: 10px 4px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .btn-gold {
@@ -359,57 +377,51 @@ body {
   transform: translateY(1px);
 }
 
-/* Stop State (Red) */
 .btn-gold.stop-mode {
   background: linear-gradient(135deg, #ff4d4d 0%, #ff3333 100%);
-  /* Brighter red */
   color: white;
   box-shadow: 0 4px 15px rgba(255, 77, 77, 0.3);
 }
 
-.btn-secondary {
-  flex: 1;
-  /* Equal width */
-  height: auto;
-  /* Let padding define height */
-  padding: 10px;
-  /* Reduced from 14px */
-  background: #f1f3f4;
-  /* Light gray */
-  border: none;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.btn-wr {
+  background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
   color: #333;
-  /* Dark text */
-  font-weight: 700;
-  font-size: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
+.btn-wr:hover {
+  transform: translateY(-1px);
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.btn-secondary {
+  background: #f1f3f4;
+  color: #333;
+}
+
+.btn-gold:hover,
 .btn-secondary:hover {
-  background: #e0e2e4;
   transform: translateY(-1px);
 }
 
-.btn-secondary:active {
-  transform: translateY(1px);
+/* Lab Status */
+.lab-status {
+  font-size: 11px;
+  color: var(--accent-gold);
+  text-align: center;
+  font-weight: 500;
+  margin-top: 4px;
 }
 
 /* Progress Section */
 .progress-section {
-  position: absolute;
-  bottom: 120px;
-  /* Above button */
-  left: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.6);
+  position: relative;
+  margin: 8px 0;
+  background: rgba(0, 0, 0, 0.4);
   border-radius: 8px;
   padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(4px);
   z-index: 5;
 }
@@ -485,11 +497,11 @@ body {
   font-size: 12px;
   color: #ccc;
   display: block;
+  white-space: pre-wrap;
 }
 
 .website-link-large {
   font-size: 12px;
-  color: var(--accent-gold);
   text-decoration: none;
   opacity: 0.9;
 }
@@ -525,4 +537,116 @@ body {
   border-radius: 8px;
   color: #ff8080;
   font-size: 11px;
+}
+
+/* Link Group Alignment Fix */
+.link-group {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  height: 20px;
+}
+
+/* Force 12px and strict alignment */
+.link-group a,
+.link-group span {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  height: 100%;
+  padding-top: 1px;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 320px;
+  text-align: center;
+}
+
+.modal-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: var(--accent-gold);
+}
+
+.modal-content p {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.modal-hint {
+  font-size: 12px !important;
+  color: #999 !important;
+}
+
+.modal-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 12px;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.modal-checkbox input {
+  accent-color: var(--accent-gold);
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn-primary {
+  background: var(--accent-gold);
+  color: #000;
+}
+
+.modal-btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.modal-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+.modal-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
 }

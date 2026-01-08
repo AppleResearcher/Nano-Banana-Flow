@@ -30,6 +30,7 @@ A powerful Chrome extension designed to help you batch generate images on Gemini
             *   `2_dog.webp` -> Matches the 2nd prompt
         *   Supports all common formats like jpg, png, webp, gif, etc.
     - **Visual Feedback**: Preview associated images for each task before generation.
+- ⚡ **Watermark Removal**: [v1.2.1+] Built-in watermark removal lab to quickly remove Gemini watermarks from generated images.
 - 📊 **Real-time Progress**: Intuitive progress bar showing generation status.
 - 💾 **Smart Save**: Automatically saves your last input prompts
 - ⏹️ **Task Control**: Stop running tasks at any time
@@ -95,6 +96,29 @@ A blooming rose flower
 - Images are automatically downloaded to your default download folder (or your specified directory)
 - File naming format: `page1.png`, `page2.png`, `page3.png`...
 
+### Step 5: Watermark Removal (Optional)
+
+1. After batch generation completes, a prompt will appear asking if you want to remove watermarks
+2. Click "OK", then manually click the **"⚡ Watermark"** button on the extension
+3. Select the images to process in the file picker (multi-select supported)
+4. Processed images will be automatically downloaded with `_wr` suffix
+
+> **Tip**: You can also click the "⚡ Watermark" button anytime to process any images.
+
+---
+
+## 📥 Download Rules
+
+### Batch Generation Downloads
+- **Default Path**: Browser's default download directory
+- **Custom Directory**: Enter a relative path at the top of the extension (e.g., `my-project/slide1`), images will save to `Downloads/my-project/slide1/`
+- **Naming Format**: `page1.png`, `page2.png`, `page3.png`...
+
+### Watermark Removal Downloads
+- **Save Location**: Browser's default download directory
+- **Naming Format**: Original filename + `_wr.png` suffix (e.g., `page1.png` → `page1_wr.png`)
+- **Note**: Due to browser security restrictions, watermark-removed files cannot be automatically saved to the original file's directory; manual relocation is required
+
 ## 🔧 FAQ
 
 ### Basic
@@ -144,6 +168,11 @@ Nano-Banana-Flow/
 - **Chrome APIs**: Downloads API, Storage API
 
 ## 📝 Changelog
+
+### v1.2.1 (2025-01-08)
+- ✅ **Watermark Removal**: New watermark removal lab feature to quickly remove Gemini watermarks.
+- ✅ **Progress Bar Optimization**: Redesigned progress bar layout, no longer blocked by other elements.
+- ✅ **State Persistence**: Prompts and reference images are preserved when the popup is closed and reopened.
 
 ### v1.2.0 (2025-12-24)
 - ✅ **Compact UI**: Redesigned for higher information density and better aesthetics.
