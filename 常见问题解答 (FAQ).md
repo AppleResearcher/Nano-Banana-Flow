@@ -10,7 +10,7 @@
 
 **2. 在哪里下载？最新版本是多少？**
 **A:**
-*   **当前最新版本**：**v1.2.0**
+*   **当前最新版本**：**v1.3.0**
 *   **最新源码**：请关注 GitHub 项目仓库 [AppleResearcher/Nano-Banana-Flow](https://github.com/AppleResearcher/Nano-Banana-Flow)。
 *   **网盘下载**：
     *   **国内下载 (百度网盘)**：[点击跳转](https://pan.baidu.com/s/1I9DMwu_NQVhAqIGeqgEa7g?pwd=saec) (提取码: `saec`)
@@ -71,7 +71,7 @@
 *   **文件名**：默认按顺序命名，如 `page1.png`, `page2.png` 等。
 
 **10. 是否支持“图生图”？**
-**A:** 是的，v1.2.0 版本已全面支持。使用上述的“导入图片”功能即可。
+**A:** 是的，v1.3.0 版本已全面支持。使用上述的“导入图片”功能即可。
 
 ---
 
