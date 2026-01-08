@@ -30,7 +30,7 @@ A powerful Chrome extension designed to help you batch generate images on Gemini
             *   `2_dog.webp` -> Matches the 2nd prompt
         *   Supports all common formats like jpg, png, webp, gif, etc.
     - **Visual Feedback**: Preview associated images for each task before generation.
-- ⚡ **Watermark Removal**: [v1.2.1+] Built-in watermark removal lab to quickly remove Gemini watermarks from generated images.
+- ⚡ **Watermark Removal**: [v1.3.0+] Built-in watermark removal lab to quickly remove Gemini watermarks from generated images.
 - 📊 **Real-time Progress**: Intuitive progress bar showing generation status.
 - 💾 **Smart Save**: Automatically saves your last input prompts
 - ⏹️ **Task Control**: Stop running tasks at any time
@@ -169,7 +169,7 @@ Nano-Banana-Flow/
 
 ## 📝 Changelog
 
-### v1.2.1 (2025-01-08)
+### v1.3.0 (2025-01-08)
 - ✅ **Watermark Removal**: New watermark removal lab feature to quickly remove Gemini watermarks.
 - ✅ **Progress Bar Optimization**: Redesigned progress bar layout, no longer blocked by other elements.
 - ✅ **State Persistence**: Prompts and reference images are preserved when the popup is closed and reopened.

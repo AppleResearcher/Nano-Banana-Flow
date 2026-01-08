@@ -3,7 +3,7 @@
 // ============================================
 const GA_MEASUREMENT_ID = 'G-P27Y3YCJYM';
 const GA_API_SECRET = '_FK2ZAQtS9C4b6PFmySg6w';
-const EXTENSION_VERSION = '1.2.1';
+const EXTENSION_VERSION = '1.3.0';
 
 // GA4 Event Sender
 async function sendAnalyticsEvent(eventName, params = {}) {
@@ -932,7 +932,7 @@ async function updateDynamicFooter() {
 document.addEventListener('DOMContentLoaded', updateDynamicFooter);
 
 // ============================================
-// 演示模式 - 连击版本号开启 (v1.2.1)
+// 演示模式 - 连击版本号开启 (v1.3.0)
 // 连续点击版本号 5 次可切换演示模式，隐藏公告栏
 // ============================================
 
