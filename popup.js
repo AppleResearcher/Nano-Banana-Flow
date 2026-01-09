@@ -3,7 +3,36 @@
 // ============================================
 const GA_MEASUREMENT_ID = 'G-P27Y3YCJYM';
 const GA_API_SECRET = '_FK2ZAQtS9C4b6PFmySg6w';
-const EXTENSION_VERSION = '1.3.0';
+const EXTENSION_VERSION = '1.3.1';
+
+// ============================================
+// Debug Mode - 调试日志开关
+// ============================================
+let debugMode = false;
+
+// 加载 Debug 模式状态
+async function loadDebugMode() {
+  const res = await chrome.storage.local.get('debugMode');
+  debugMode = res.debugMode || false;
+  if (debugMode) console.log('[DEBUG] 🐛 Debug 模式已启用');
+}
+
+// 调试日志工具函数
+function debugLog(...args) {
+  if (debugMode) {
+    console.log('[DEBUG]', ...args);
+  }
+}
+
+// 调试日志 - 带时间戳
+function debugLogTimed(label, ...args) {
+  if (debugMode) {
+    console.log(`[DEBUG] [${new Date().toISOString()}] ${label}`, ...args);
+  }
+}
+
+// 初始化时加载 Debug 模式
+loadDebugMode();
 
 // GA4 Event Sender
 async function sendAnalyticsEvent(eventName, params = {}) {
@@ -201,8 +230,93 @@ if (promptsTextarea) {
 
 function updatePromptCount(text) {
   if (!promptCount) return;
-  const prompts = text.split('\n').filter(line => line.trim() !== '');
+  const prompts = parsePrompts(text);
   promptCount.textContent = `${prompts.length} 条提示词已被识别，随时可以开始`;
+}
+
+// ============================================
+// 提示词解析器 - 支持多种分隔符和 JSON 格式
+// ============================================
+// ============================================
+// 提示词解析器 - 支持分隔符、JSON块识别、HTML标签清洗
+// ============================================
+function parsePrompts(text) {
+  if (!text || !text.trim()) return [];
+
+  // 1. 清洗常见的 HTML 标签 (针对复制粘贴场景)
+  // 移除 <pre...> 和 </pre>，保留内容
+  let cleanText = text.replace(/<pre[^>]*>/gi, '').replace(/<\/pre>/gi, '');
+
+  let trimmed = cleanText.trim();
+
+  // 2. 检测强分隔符 (--- 或 ||| 或 ⸻)
+  // 只要存在这些分隔符，优先级最高，直接按此分割
+  const delimiterRegex = /---|\|\|\||⸻/;
+  if (delimiterRegex.test(trimmed)) {
+    console.log('[Parser] 检测到强分隔符模式 (---, |||, ⸻)');
+    return trimmed.split(delimiterRegex)
+      .map(p => p.trim())
+      .filter(p => p);
+  }
+
+  // 3. 智能按行分割 (括号平衡算法)
+  // 解决 JSON 或代码块被换行符错误切分的问题
+  const lines = trimmed.split('\n');
+  const result = [];
+  let currentBuffer = [];
+  let braceBalance = 0; // {} 平衡计数
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    // 统计当前行的括号变化
+    const openCount = (line.match(/\{/g) || []).length;
+    const closeCount = (line.match(/\}/g) || []).length;
+
+    braceBalance += openCount;
+    braceBalance -= closeCount;
+
+    // 修正负平衡 (防止乱码导致)
+    if (braceBalance < 0) braceBalance = 0;
+
+    // 逻辑：
+    // 如果当前缓冲区有内容，且当前行为空行，且不在括号内 -> 分割
+    // (即：空行仅在非 JSON 块期间作为分隔符)
+    if (trimmedLine === '' && braceBalance === 0 && currentBuffer.length > 0) {
+      result.push(currentBuffer.join('\n').trim());
+      currentBuffer = [];
+    } else {
+      // 只要有内容，或者在括号内（保留空行），就加入缓冲区
+      if (trimmedLine !== '' || braceBalance > 0) {
+        currentBuffer.push(line);
+      }
+    }
+  }
+
+  // 处理最后的缓冲区
+  if (currentBuffer.length > 0) {
+    result.push(currentBuffer.join('\n').trim());
+  }
+
+  // 4. 二次处理：尝试解析结果中的 JSON
+  return result.filter(p => p).map(block => {
+    // 如果该块看起来像是 JSON，尝试解析并提取 prompt
+    if (block.trim().startsWith('{') || block.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(block);
+        if (parsed.prompt) return parsed.prompt; // 提取 prompt 字段
+        // 如果是数组，这里其实已经被当作一个 block 了，可能用户想把数组当多个任务？
+        // 但根据目前逻辑，既然没被空行分割，就视为一个整体。 
+        // 如果需要处理数组展开，可以在这里做，但会增加复杂度。
+        // 目前策略：保持原样 stringify 或作为普通文本
+        return block.trim();
+      } catch (e) {
+        return block.trim();
+      }
+    }
+    return block.trim();
+  });
 }
 
 // Clear Prompts
@@ -248,7 +362,114 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // GA4: Track extension open
   sendAnalyticsEvent('extension_open');
+
+  // 首次使用引导
+  chrome.storage.local.get(['guideCompleted'], (res) => {
+    if (!res.guideCompleted) {
+      showOnboardingGuide();
+    }
+  });
 });
+
+// ============================================
+// 首次使用引导 - 轮播式 (v1.3.0)
+// ============================================
+function showOnboardingGuide() {
+  const slides = [
+    {
+      icon: '⚡',
+      title: '一键去水印',
+      content: `
+        批量生成完成后，点击 <b>「⚡去水印」</b> 按钮<br>
+        选择需要处理的图片，自动去除 Gemini 水印<br>
+        处理后的文件名添加 <code>_wr</code> 后缀
+      `,
+      step: '第 1/3 步'
+    },
+    {
+      icon: '👋',
+      title: '欢迎使用大香蕉！',
+      content: `
+        <b>📂 保存目录</b>：可自定义下载路径<br>
+        <b>📄 导入提示词</b>：从 TXT 文件批量导入<br>
+        <b>🖼️ 导入图片</b>：支持图生图功能
+      `,
+      step: '第 2/3 步'
+    },
+    {
+      icon: '🖼️',
+      title: '智能图生图',
+      content: `
+        图片文件名以数字开头即可自动匹配：<br>
+        <code>1_cat.jpg</code> → 匹配第 1 行提示词<br>
+        <code>2_dog.png</code> → 匹配第 2 行提示词<br>
+        支持 jpg/png/webp/gif 等格式
+      `,
+      step: '第 3/3 步'
+    }
+  ];
+
+  let currentSlide = 0;
+
+  // 创建遮罩
+  const guideModal = document.createElement('div');
+  guideModal.id = 'nbf-guide-modal';
+  guideModal.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); z-index: 99999;
+    display: flex; align-items: center; justify-content: center;
+  `;
+
+  const renderSlide = () => {
+    const s = slides[currentSlide];
+    const isFirst = currentSlide === 0;
+    const isLast = currentSlide === slides.length - 1;
+
+    guideModal.innerHTML = `
+      <div style="
+        background: #fff; padding: 24px; border-radius: 12px;
+        max-width: 320px; text-align: center;
+      ">
+        <div style="font-size: 32px; margin-bottom: 12px;">${s.icon}</div>
+        <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 16px;">${s.title}</div>
+        <div style="font-size: 13px; color: #555; line-height: 1.8; text-align: left; margin-bottom: 20px;">
+          ${s.content}
+        </div>
+        <div style="font-size: 11px; color: #888; margin-bottom: 16px;">${s.step}</div>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          ${!isFirst ? '<button id="guide-prev" style="padding: 8px 16px; background: #f0f0f0; color: #333; border: none; border-radius: 6px; cursor: pointer;">← 上一步</button>' : ''}
+          <button id="guide-next" style="padding: 8px 16px; background: #f59e0b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+            ${isLast ? '开始使用 🚀' : '下一步 →'}
+          </button>
+        </div>
+      </div>
+    `;
+
+    // 事件绑定
+    const prevBtn = guideModal.querySelector('#guide-prev');
+    const nextBtn = guideModal.querySelector('#guide-next');
+
+    if (prevBtn) {
+      prevBtn.onclick = () => {
+        currentSlide--;
+        renderSlide();
+      };
+    }
+
+    nextBtn.onclick = () => {
+      if (isLast) {
+        chrome.storage.local.set({ guideCompleted: true });
+        guideModal.remove();
+      } else {
+        currentSlide++;
+        renderSlide();
+      }
+    };
+  };
+
+  document.body.appendChild(guideModal);
+  renderSlide();
+}
 
 // Unified Action Button Click Handler
 if (actionBtn) {
@@ -283,22 +504,17 @@ async function handleStart() {
     return;
   }
 
-  const lines = input.split('\n');
+  // 使用 parsePrompts 统一解析提示词
+  const prompts = parsePrompts(input);
   const tasks = [];
-  let validLineCount = 0; // 逻辑行号（即任务序号）
 
-  lines.forEach((line, index) => {
-    const prompt = line.trim();
-    if (prompt) {
-      validLineCount++; // 只有非空行才增加任务计数
-      const taskIndex = validLineCount;
-
-      tasks.push({
-        prompt: prompt,
-        lineNum: taskIndex, // 使用逻辑索引
-        images: associatedImages.get(taskIndex) || [] // 按逻辑索引取图
-      });
-    }
+  prompts.forEach((prompt, index) => {
+    const taskIndex = index + 1;
+    tasks.push({
+      prompt: prompt,
+      lineNum: taskIndex, // 使用解析后的序号
+      images: associatedImages.get(taskIndex) || [] // 按逻辑索引取图
+    });
   });
 
   if (tasks.length === 0) {
@@ -314,9 +530,15 @@ async function handleStart() {
   }
 
   console.log('[Popup] ✅ 准备全量任务集:', tasks.length);
-  // 调试：打印每个任务的图片关联情况
+  // 调试日志
+  debugLog('📝 详细任务信息:');
   tasks.forEach((t, i) => {
     console.log(`[Popup] 任务 ${i + 1}: 提示词="${t.prompt.substring(0, 20)}..." , 行号=${t.lineNum}, 关联图片=${t.images.length}张`);
+    debugLog(`  任务 #${i + 1}:`, {
+      prompt: t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : ''),
+      imageCount: t.images.length,
+      imageNames: t.images.map(f => f.name || 'unknown')
+    });
   });
 
   // GA4: Track generation start
@@ -347,9 +569,29 @@ async function startGeneration(tasks, directory) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // Prepare Tasks: Convert Files to Base64 for message passing
+    // Prepare Tasks: Compress large images and convert to Base64
     const processedTasks = await Promise.all(tasks.map(async (task) => {
-      const imgData = await Promise.all(task.images.map(file => fileToBase64(file)));
+      const imgData = await Promise.all(task.images.map(async (file) => {
+        // 如果图片大于 1MB，先压缩
+        if (file.size > 1024 * 1024) {
+          const originalSizeMB = (file.size / 1024 / 1024).toFixed(2);
+          console.log(`[Popup] 🗜️ 压缩大图: ${file.name} (${originalSizeMB}MB)`);
+          debugLog('🖼️ 图片压缩详情:', {
+            fileName: file.name,
+            originalSize: `${originalSizeMB}MB`,
+            type: file.type
+          });
+          const compressedFile = await compressImage(file, 1024);
+          const newSizeKB = (compressedFile.size / 1024).toFixed(0);
+          console.log(`[Popup] ✅ 压缩后: ${newSizeKB}KB`);
+          debugLog('✅ 压缩完成:', {
+            newSize: `${newSizeKB}KB`,
+            compressionRatio: `${((1 - compressedFile.size / file.size) * 100).toFixed(0)}%`
+          });
+          return fileToBase64(compressedFile);
+        }
+        return fileToBase64(file);
+      }));
       return {
         prompt: task.prompt,
         images: imgData // Array of strings (base64)
@@ -474,6 +716,56 @@ function fileToBase64(file) {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// 压缩图片：按最长边缩放到指定尺寸
+async function compressImage(file, maxSize = 1024) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // 计算缩放比例
+        let { width, height } = img;
+        const longestSide = Math.max(width, height);
+
+        if (longestSide <= maxSize) {
+          // 不需要缩放，直接返回原文件
+          resolve(file);
+          return;
+        }
+
+        const scale = maxSize / longestSide;
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+
+        // 使用 Canvas 缩放
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 转为 Blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            // 创建新的 File 对象保留原文件名
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve(compressedFile);
+          } else {
+            reject(new Error('Canvas toBlob failed'));
+          }
+        }, 'image/jpeg', 0.85); // JPEG 质量 85%
+      };
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
 }
@@ -1026,4 +1318,41 @@ setTimeout(() => {
 
   // 版本号样式
   versionBadge.style.cursor = "pointer";
+
+  // ============================================
+  // Debug Mode - Alt+连击版本号 3 次开启
+  // ============================================
+  let debugClickCount = 0;
+  let lastDebugClickTime = 0;
+  const DEBUG_CLICK_THRESHOLD = 3;
+
+  versionBadge.addEventListener('click', (e) => {
+    // 只有按住 Alt 键时才触发 Debug Mode
+    if (!e.altKey) return;
+
+    const now = Date.now();
+    if (now - lastDebugClickTime > CLICK_TIMEOUT) debugClickCount = 0;
+    lastDebugClickTime = now;
+    debugClickCount++;
+
+    console.log(`[Debug] Alt+Click: ${debugClickCount}`);
+
+    if (debugClickCount >= DEBUG_CLICK_THRESHOLD) {
+      debugMode = !debugMode;
+      chrome.storage.local.set({ debugMode }, () => {
+        const toast = document.createElement('div');
+        toast.textContent = debugMode ? '🐛 Debug 模式已开启' : '🐛 Debug 模式已关闭';
+        toast.style.cssText = `
+          position: fixed; top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          background: ${debugMode ? '#10b981' : '#6b7280'};
+          color: #fff; padding: 12px 24px; border-radius: 8px;
+          z-index: 99999; font-size: 14px; font-weight: bold;
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      });
+      debugClickCount = 0;
+    }
+  });
 }, 500);

@@ -6,9 +6,9 @@
 > 
 > 【我的博客】分享更多AI工具和教程：https://gt.topgpt.us
 
-![Nano Banana Flow Preview](https://gt.topgpt.us/upload/v1.2.0.png)
+![Nano Banana Flow Preview](https://gt.topgpt.us/upload/NBF-Pro-v1.3.1.png)
 
-[![Version](https://img.shields.io/badge/version-1.2.0-gold.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
+[![Version](https://img.shields.io/badge/version-1.3.1-gold.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
 [![Chrome](https://img.shields.io/badge/Chrome-Extension-blue.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
 
 [English Contents](README_EN.md)
@@ -22,7 +22,7 @@
 - 🎨 **批量生图**：一次性输入多个提示词，全自动逐条生成。
 - 📥 **自动下载**：生成后自动下载，支持自定义保存目录。
 - 📄 **TXT 快速导入**：[v1.2.0+] 支持从本地 TXT 文件一键导入海量提示词。
-- 🖼️ **智能图生图**：[v1.2.0+] 支持本地参考图上传，根据文件名自动匹配（如 `1_image.jpg` 匹配第一条）。
+- 🖼️ **智能图生图**：[v1.2.0+] 支持本地参考图上传，根据文件名自动匹配（如 `1_image.jpg` 匹配第一条）。大于 1MB 的图片自动压缩至 1024px，避免上传超时。
 - ⚡ **一键去水印**：[v1.3.0+] 内置去水印实验室功能，可快速去除 Gemini 生成图片的水印。
 - 📊 **实时进度**：直观的进度条显示，实时掌握生成动态。
 - 💾 **自动保存**：自动记录最后一次输入的提示词，不怕意外关闭。
@@ -157,6 +157,13 @@ Nano-Banana-Flow/
 - **Chrome APIs**：Downloads API、Storage API
 
 ## 📝 更新日志
+
+### v1.3.1 (2025-01-09)
+- ✅ **智能分隔符**：提示词支持 `---`、`|||`、`⸻` 作为分隔符，多行 JSON 也能正确识别。
+- ✅ **图片自动压缩**：大于 1MB 的参考图自动压缩至 1024px，避免上传超时。
+- ✅ **首次使用引导**：新用户打开插件时显示 3 步轮播引导。
+- ✅ **更新刷新提示**：安装/更新后在 Gemini 页面弹出刷新提示。
+- ✅ **资源优化**：背景图和二维码转为 WebP 格式，总体积压缩 90%。
 
 ### v1.3.0 (2025-01-08)
 - ✅ **一键去水印**：新增去水印实验室功能，快速去除 Gemini 生成图片水印。

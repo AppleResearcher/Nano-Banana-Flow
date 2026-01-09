@@ -4,9 +4,9 @@
 >
 > Batch Image Generation Tool for Gemini AI
 
-![Nano Banana Flow Preview](https://gt.topgpt.us/upload/v1.2.0.png)
+![Nano Banana Flow Preview](https://gt.topgpt.us/upload/NBF-Pro-v1.3.1.png)
 
-[![Version](https://img.shields.io/badge/version-1.2.0-gold.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
+[![Version](https://img.shields.io/badge/version-1.3.1-gold.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
 [![Chrome](https://img.shields.io/badge/Chrome-Extension-blue.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
 
 [中文说明](README.md)
@@ -20,7 +20,7 @@ A powerful Chrome extension designed to help you batch generate images on Gemini
 - 🎨 **Batch Generation**: Input multiple prompts at once and generate them automatically one by one.
 - 📥 **Auto Download**: Automatically download images after generation, supporting custom save directories.
 - 📄 **TXT Import**: [v1.2.0+] One-click import of massive prompts from local TXT files.
-- 🖼️ **Image-to-Image**: [v1.2.0+] Full support for reference images!
+- 🖼️ **Image-to-Image**: [v1.2.0+] Full support for reference images! Images larger than 1MB are auto-compressed to 1024px to prevent upload timeouts.
     3.  **Import Reference Images (Optional)**: Click "🖼️ Import Images" if you need image-to-image generation.
         *   **Flexible Naming Rules**: Just ensure the filename **starts with a number**, which corresponds to the line number of the prompt.
         *   **Examples**:
@@ -168,6 +168,13 @@ Nano-Banana-Flow/
 - **Chrome APIs**: Downloads API, Storage API
 
 ## 📝 Changelog
+
+### v1.3.1 (2025-01-09)
+- ✅ **Smart Delimiters**: Prompts now support `---`, `|||`, `⸻` as delimiters. Multi-line JSON is also correctly parsed.
+- ✅ **Auto Image Compression**: Reference images larger than 1MB are auto-compressed to 1024px to prevent upload timeouts.
+- ✅ **First-Use Onboarding**: New users see a 3-step carousel guide when opening the extension.
+- ✅ **Update Refresh Prompt**: After install/update, a refresh prompt appears on open Gemini pages.
+- ✅ **Asset Optimization**: Background and QR code images converted to WebP, reducing total size by 90%.
 
 ### v1.3.0 (2025-01-08)
 - ✅ **Watermark Removal**: New watermark removal lab feature to quickly remove Gemini watermarks.

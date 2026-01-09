@@ -7,6 +7,35 @@ let isProcessing = false;
 let isStopped = false; // 中止标志
 let batchImageUrls = []; // 批量下载图片URL缓存
 
+// ============================================
+// Debug Mode - 调试日志
+// ============================================
+let debugMode = false;
+
+// 加载 Debug 模式状态
+async function loadDebugMode() {
+    const res = await chrome.storage.local.get('debugMode');
+    debugMode = res.debugMode || false;
+    if (debugMode) console.log('[Content][DEBUG] 🐛 Debug 模式已启用');
+}
+
+// 调试日志工具函数
+function debugLog(...args) {
+    if (debugMode) {
+        console.log('[Content][DEBUG]', ...args);
+    }
+}
+
+// 初始化时加载 Debug 模式
+loadDebugMode();
+
+// 监听 storage 变化以实时同步 Debug 状态
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.debugMode) {
+        debugMode = changes.debugMode.newValue || false;
+    }
+});
+
 // 监听来自background的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[Content] 📨 收到消息:', message.action);
@@ -40,6 +69,15 @@ async function handleGenerateImage(prompt, images, directory, index, total) {
     console.log(`提示词: ${prompt}`);
     if (images && images.length > 0) console.log(`关联图片数量: ${images.length}`);
     if (directory) console.log(`保存目录: ${directory}`);
+
+    // Debug 详细信息
+    debugLog('📝 任务详情:', {
+        taskIndex: `${index}/${total}`,
+        promptLength: prompt.length,
+        promptPreview: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''),
+        imageCount: images ? images.length : 0,
+        directory: directory || '默认'
+    });
 
     try {
         // 检查是否已中止
@@ -673,6 +711,13 @@ async function waitForIdle() {
 async function uploadImagesToGemini(base64Images) {
     console.log('[Upload] 🚀 开始粘贴上传流程 (Plan D)，共', base64Images.length, '张图片');
 
+    // Debug: 输出图片大小信息
+    debugLog('🖼️ 参考图上传详情:');
+    base64Images.forEach((b64, i) => {
+        const sizeKB = Math.round(b64.length * 0.75 / 1024); // Base64 还原大小估算
+        debugLog(`  图片 #${i + 1}: ~${sizeKB}KB (Base64长度: ${b64.length})`);
+    });
+
     // 1. 找到输入框
     const inputArea = findInputArea();
     if (!inputArea) {
@@ -692,6 +737,8 @@ async function uploadImagesToGemini(base64Images) {
         const resp = await fetch(b64);
         const blob = await resp.blob();
         const file = new File([blob], `ref_${i + 1}.png`, { type: 'image/png' });
+
+        debugLog(`  文件已创建: ${file.name}, 大小: ${Math.round(file.size / 1024)}KB, 类型: ${file.type}`);
 
         await uploadSingleImageViaPaste(inputArea, file);
 

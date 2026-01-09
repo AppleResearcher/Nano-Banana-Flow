@@ -10,10 +10,114 @@ let currentTaskIndex = 0;
 let currentTabId = null;
 let pendingWatermarkPrompt = false; // 新增: 标记是否有待处理的去水印提示
 
-// 监听安装事件
-chrome.runtime.onInstalled.addListener(() => {
-    console.log('✅ Nano Banana Flow Service Worker Installed');
+// ============================================
+// Debug Mode - 调试日志
+// ============================================
+let debugMode = false;
+
+// 加载 Debug 模式状态
+async function loadDebugMode() {
+    const res = await chrome.storage.local.get('debugMode');
+    debugMode = res.debugMode || false;
+    if (debugMode) console.log('[BG][DEBUG] 🐛 Debug 模式已启用');
+}
+
+// 调试日志工具函数
+function debugLog(...args) {
+    if (debugMode) {
+        console.log('[BG][DEBUG]', ...args);
+    }
+}
+
+// 初始化时加载 Debug 模式
+loadDebugMode();
+
+// 监听 storage 变化以实时同步 Debug 状态
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.debugMode) {
+        debugMode = changes.debugMode.newValue || false;
+        console.log('[BG] Debug 模式已更新:', debugMode);
+    }
 });
+
+// 监听安装/更新事件
+chrome.runtime.onInstalled.addListener(async (details) => {
+    console.log('✅ Nano Banana Flow Service Worker Installed, reason:', details.reason);
+
+    // 安装或更新时，向已打开的 Gemini 页面注入刷新提示
+    if (details.reason === 'install' || details.reason === 'update') {
+        try {
+            const tabs = await chrome.tabs.query({ url: '*://gemini.google.com/*' });
+
+            for (const tab of tabs) {
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: showUpdateNotification,
+                    args: [details.reason]
+                }).catch(() => {
+                    console.log('[BG] 无法注入刷新提示到标签页:', tab.id);
+                });
+            }
+        } catch (e) {
+            console.log('[BG] 查询标签页失败:', e);
+        }
+    }
+});
+
+// 更新刷新提示弹窗
+function showUpdateNotification(reason) {
+    // 防止重复注入
+    if (document.getElementById('nbf-update-modal-backdrop')) return;
+
+    const isInstall = reason === 'install';
+    const title = isInstall ? '🍌 大香蕉已安装！' : '🍌 大香蕉已更新！';
+    const message = isInstall
+        ? '欢迎使用 Nano Banana Flow！请刷新此页面以启用插件功能。'
+        : '插件已更新到最新版本，请刷新此页面以应用新功能。';
+
+    // 创建遮罩
+    const backdrop = document.createElement('div');
+    backdrop.id = 'nbf-update-modal-backdrop';
+    backdrop.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6); z-index: 99998;
+    display: flex; align-items: center; justify-content: center;
+  `;
+
+    // 创建弹窗
+    backdrop.innerHTML = `
+    <div style="
+      width: 360px; background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3); overflow: hidden;
+    ">
+      <div style="background: #333; color: #fff; padding: 16px 20px; font-size: 15px; font-weight: 600;">
+        ${title}
+      </div>
+      <div style="padding: 24px 20px; font-size: 14px; color: #333; line-height: 1.6;">
+        ${message}
+      </div>
+      <div style="
+        background: #f9f9f9; border-top: 1px solid #eee;
+        padding: 12px 20px; display: flex; gap: 12px; justify-content: flex-end;
+      ">
+        <button id="nbf-later-btn" style="
+          padding: 8px 16px; border: 1px solid #ccc; background: #fff;
+          color: #333; border-radius: 6px; cursor: pointer; font-size: 13px;
+        ">稍后</button>
+        <button id="nbf-refresh-btn" style="
+          padding: 8px 16px; border: none; background: #f59e0b;
+          color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;
+        ">刷新页面</button>
+      </div>
+    </div>
+  `;
+
+    document.body.appendChild(backdrop);
+
+    // 事件绑定
+    document.getElementById('nbf-later-btn').onclick = () => backdrop.remove();
+    document.getElementById('nbf-refresh-btn').onclick = () => location.reload();
+}
 
 // ========== 核心：消息监听器 ==========
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
