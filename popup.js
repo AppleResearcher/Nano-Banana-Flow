@@ -1,8 +1,10 @@
 // ============================================
 // GA4 Analytics Configuration
 // ============================================
-const GA_MEASUREMENT_ID = 'G-P27Y3YCJYM';
-const GA_API_SECRET = '_FK2ZAQtS9C4b6PFmySg6w';
+// 优先使用 config.js 中的配置，如果未加载（如开发环境缺失）则使用空值避免报错
+const GA_MEASUREMENT_ID = (typeof GA_CONFIG !== 'undefined') ? GA_CONFIG.MEASUREMENT_ID : '';
+const GA_API_SECRET = (typeof GA_CONFIG !== 'undefined') ? GA_CONFIG.API_SECRET : '';
+
 const EXTENSION_VERSION = '1.3.1';
 
 // ============================================
@@ -89,28 +91,53 @@ const statusIndicator = document.getElementById('statusIndicator');
 // New Advanced Features DOM
 const importTxtBtn = document.getElementById('importTxtBtn');
 const importImagesBtn = document.getElementById('importImagesBtn');
-const importFolderBtn = document.getElementById('importFolderBtn'); // New
+const promptEnhanceBtn = document.getElementById('promptEnhanceBtn');
+const promptLibraryBtn = document.getElementById('promptLibraryBtn');
+const savePromptBtn = document.getElementById('savePromptBtn');
+const settingsBtn = document.getElementById('settingsBtn');
 
 const txtFileInput = document.getElementById('txtFileInput');
 const imageFileInput = document.getElementById('imageFileInput');
-const folderInput = document.getElementById('folderInput'); // New
-const manualWatermarkInput = document.getElementById('manualWatermarkInput'); // New
-const matchDetails = document.getElementById('matchDetails'); // New
-const labStatus = document.getElementById('labStatus'); // New
+const folderInput = document.getElementById('folderInput');
+const manualWatermarkInput = document.getElementById('manualWatermarkInput');
+const matchDetails = document.getElementById('matchDetails');
+const labStatus = document.getElementById('labStatus');
+
+// API Settings Panel Elements
+const apiSettingsPanel = document.getElementById('apiSettingsPanel');
+const apiBaseUrl = document.getElementById('apiBaseUrl');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const apiModel = document.getElementById('apiModel');
+const toggleApiKey = document.getElementById('toggleApiKey');
+const saveApiSettingsBtn = document.getElementById('saveApiSettingsBtn');
+const importConfigBtn = document.getElementById('importConfigBtn');
+const exportConfigBtn = document.getElementById('exportConfigBtn');
+const importConfigFile = document.getElementById('importConfigFile');
+
+// Prompt Library Panel Elements
+const promptLibraryPanel = document.getElementById('promptLibraryPanel');
+const librarySearchInput = document.getElementById('librarySearchInput');
+const libraryList = document.getElementById('libraryList');
+const importLibraryBtn = document.getElementById('importLibraryBtn');
+const exportLibraryBtn = document.getElementById('exportLibraryBtn');
+const clearLibraryBtn = document.getElementById('clearLibraryBtn');
+const importLibraryFile = document.getElementById('importLibraryFile');
+
+// Tag Input Panel Elements
+const tagInputPanel = document.getElementById('tagInputPanel');
+const tagInputField = document.getElementById('tagInputField');
+const cancelSavePrompt = document.getElementById('cancelSavePrompt');
+const confirmSavePrompt = document.getElementById('confirmSavePrompt');
 
 // State Management
 let isRunning = false;
 let associatedImages = new Map(); // LineNumber -> File[]
+let pendingSaveText = ''; // Text to save when tag panel is shown
 
 // --- File Import Handlers ---
 
 if (importTxtBtn) importTxtBtn.addEventListener('click', () => txtFileInput.click());
 if (importImagesBtn) importImagesBtn.addEventListener('click', () => imageFileInput.click());
-// if (importFolderBtn) importFolderBtn.addEventListener('click', () => folderInput.click()); // Old Folder Import
-if (importFolderBtn) importFolderBtn.addEventListener('click', () => {
-  // Show tooltip-like alert as this feature is placeholder for now
-  alert('✨ 提示词增强功能\n\n我们将很快推出此功能！\n开启后，或将提供多种预设的提示词优化场景（如：比例约束、风格化、细节补充、2.5/4K高清下载等），自动将您的简单提示词优化为高质量的 AI 绘图指令。\n\n敬请期待！🚀');
-});
 
 if (txtFileInput) {
   txtFileInput.addEventListener('change', (e) => {
@@ -1356,3 +1383,412 @@ setTimeout(() => {
     }
   });
 }, 500);
+
+// ============================================
+// API Settings & Advanced Features Logic
+// ============================================
+
+// --- Panel Toggle Logic ---
+function showPanel(panel) {
+  if (panel) panel.classList.remove('hidden');
+}
+
+function hidePanel(panel) {
+  if (panel) panel.classList.add('hidden');
+}
+
+document.querySelectorAll('.panel-close-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const panelId = btn.getAttribute('data-close');
+    const panel = document.getElementById(panelId);
+    hidePanel(panel);
+  });
+});
+
+if (settingsBtn) settingsBtn.addEventListener('click', () => {
+  loadApiSettings();
+  showPanel(apiSettingsPanel);
+});
+
+if (promptLibraryBtn) promptLibraryBtn.addEventListener('click', () => {
+  loadPromptLibrary();
+  showPanel(promptLibraryPanel);
+});
+
+if (savePromptBtn) savePromptBtn.addEventListener('click', () => {
+  const text = promptsTextarea.value.trim();
+  if (!text) {
+    showError('没有可保存的提示词');
+    return;
+  }
+  pendingSaveText = text;
+  tagInputField.value = '';
+  showPanel(tagInputPanel);
+});
+
+if (cancelSavePrompt) cancelSavePrompt.addEventListener('click', () => hidePanel(tagInputPanel));
+
+// --- API Settings Logic ---
+
+const DEFAULT_API_URL = 'https://api.siliconflow.cn/v1';
+const DEFAULT_MODEL = 'deepseek-ai/DeepSeek-V3';
+
+function loadApiSettings() {
+  chrome.storage.local.get(['nbfApiBaseUrl', 'nbfApiKey', 'nbfApiModel'], (res) => {
+    apiBaseUrl.value = res.nbfApiBaseUrl || '';
+    apiKeyInput.value = res.nbfApiKey || '';
+    apiModel.value = res.nbfApiModel || '';
+  });
+}
+
+if (saveApiSettingsBtn) saveApiSettingsBtn.addEventListener('click', () => {
+  const settings = {
+    nbfApiBaseUrl: apiBaseUrl.value.trim(),
+    nbfApiKey: apiKeyInput.value.trim(),
+    nbfApiModel: apiModel.value.trim()
+  };
+  chrome.storage.local.set(settings, () => {
+    alert('API 设置已保存！');
+    hidePanel(apiSettingsPanel);
+  });
+});
+
+if (toggleApiKey) toggleApiKey.addEventListener('click', () => {
+  apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+});
+
+
+
+// --- Prompt Library Logic ---
+
+function loadPromptLibrary() {
+  chrome.storage.local.get(['nbfPromptLibrary'], (res) => {
+    const library = res.nbfPromptLibrary || [];
+    renderLibraryList(library);
+  });
+}
+
+function renderLibraryList(list) {
+  if (!libraryList) return;
+  libraryList.innerHTML = '';
+
+  if (list.length === 0) {
+    libraryList.innerHTML = '<div class="empty-state">暂无保存的提示词</div>';
+    return;
+  }
+
+  list.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'library-item';
+
+    // Tags HTML
+    const tagsHtml = (item.tags || []).map(t => `<span class="tag">#${t}</span>`).join('');
+
+    el.innerHTML = `
+      <div class="library-item-text" title="${item.text}">${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}</div>
+      <div class="library-item-tags">${tagsHtml}</div>
+      <div class="library-item-actions">
+        <button class="btn-insert" data-id="${item.id}">插入</button>
+        <button class="btn-delete" data-id="${item.id}">删除</button>
+      </div>
+    `;
+    libraryList.appendChild(el);
+  });
+
+  // Attach events
+  libraryList.querySelectorAll('.btn-insert').forEach(btn => {
+    btn.addEventListener('click', (e) => insertPromptFromLibrary(parseInt(e.target.dataset.id)));
+  });
+  libraryList.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => deletePromptFromLibrary(parseInt(e.target.dataset.id)));
+  });
+}
+
+function insertPromptFromLibrary(id) {
+  chrome.storage.local.get(['nbfPromptLibrary'], (res) => {
+    const library = res.nbfPromptLibrary || [];
+    const item = library.find(it => it.id === id);
+    if (item) {
+      const currentVal = promptsTextarea.value;
+      promptsTextarea.value = currentVal ? currentVal + '\n\n' + item.text : item.text;
+      updatePromptCount(promptsTextarea.value);
+      hidePanel(promptLibraryPanel);
+      showToast('提示词已插入');
+    }
+  });
+}
+
+function deletePromptFromLibrary(id) {
+  if (!confirm('确定删除这条提示词吗？')) return;
+
+  chrome.storage.local.get(['nbfPromptLibrary'], (res) => {
+    let library = res.nbfPromptLibrary || [];
+    library = library.filter(it => it.id !== id);
+    chrome.storage.local.set({ nbfPromptLibrary: library }, () => {
+      loadPromptLibrary(); // Reload list
+    });
+  });
+}
+
+if (confirmSavePrompt) confirmSavePrompt.addEventListener('click', () => {
+  const tags = tagInputField.value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+
+  const newItem = {
+    id: Date.now(),
+    text: pendingSaveText,
+    tags: tags,
+    createdAt: Date.now()
+  };
+
+  chrome.storage.local.get(['nbfPromptLibrary'], (res) => {
+    const library = res.nbfPromptLibrary || [];
+    library.unshift(newItem); // Add to top
+    chrome.storage.local.set({ nbfPromptLibrary: library }, () => {
+      showToast('提示词已保存到库');
+      hidePanel(tagInputPanel);
+    });
+  });
+});
+
+if (librarySearchInput) librarySearchInput.addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  chrome.storage.local.get(['nbfPromptLibrary'], (res) => {
+    const library = res.nbfPromptLibrary || [];
+    if (!q) {
+      renderLibraryList(library);
+      return;
+    }
+
+    const keywords = q.split(/\s+/).filter(Boolean);
+    const filtered = library.filter(it => {
+      const combined = (it.text + ' ' + (it.tags || []).join(' ')).toLowerCase();
+      // AND Search logic
+      return keywords.every(kw => combined.includes(kw));
+    });
+    renderLibraryList(filtered);
+  });
+});
+
+if (clearLibraryBtn) clearLibraryBtn.addEventListener('click', () => {
+  if (confirm('⚠️ 确定要清空所有保存的提示词吗？此操作不可恢复！')) {
+    chrome.storage.local.set({ nbfPromptLibrary: [] }, () => {
+      loadPromptLibrary();
+    });
+  }
+});
+
+// --- Prompt Enhancement Logic ---
+
+if (promptEnhanceBtn) promptEnhanceBtn.addEventListener('click', async () => {
+  const text = promptsTextarea.value.trim();
+  if (!text) {
+    showError('请输入需要优化的提示词');
+    return;
+  }
+
+  // Check API config
+  const settings = await chrome.storage.local.get(['nbfApiBaseUrl', 'nbfApiKey', 'nbfApiModel']);
+  if (!settings.nbfApiKey) {
+    showError('请先点击右上角 ⚙️ 配置 API Key');
+    showPanel(apiSettingsPanel);
+    return;
+  }
+
+  const baseUrl = settings.nbfApiBaseUrl || DEFAULT_API_URL;
+  const apiKey = settings.nbfApiKey;
+  const model = settings.nbfApiModel || DEFAULT_MODEL;
+
+  // Show loading state
+  const originalBtnText = promptEnhanceBtn.textContent;
+  promptEnhanceBtn.textContent = '✨ 优化中...';
+  promptEnhanceBtn.disabled = true;
+
+  try {
+    // Construct System Prompt (Hidden)
+    //const systemPrompt = "你是 AI 绘画提示词专家。请优化用户的提示词，使其更适合生成高质量图片。请直接输出优化后的英文提示词，不要包含任何解释或Markdown格式。";
+    const systemPrompt = "你是 AI 绘画提示词专家。请分析用户的原始提示词，保留核心意图，并补充细节（如光照、构图、风格、材质等），使其更适合生成高质量图片。请直接输出优化后的英文提示词，不要包含任何解释或Markdown格式。";
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `请优化以下提示词:\n${text}` }
+        ],
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const improvedPrompt = data.choices?.[0]?.message?.content;
+
+    if (improvedPrompt) {
+      promptsTextarea.value = improvedPrompt;
+      updatePromptCount(improvedPrompt);
+      showToast('✨ 提示词已优化！');
+    } else {
+      throw new Error('API 返回内容为空');
+    }
+
+  } catch (error) {
+    console.error('Prompt Enhancement Failed:', error);
+    showError(`优化失败: ${error.message}`);
+  } finally {
+    promptEnhanceBtn.textContent = originalBtnText;
+    promptEnhanceBtn.disabled = false;
+  }
+});
+
+// --- Import/Export Config Logic ---
+
+if (exportConfigBtn) exportConfigBtn.addEventListener('click', () => {
+  if (!confirm('导出文件将包含包含您的 API Key，请注意保管！\n\n确定导出配置吗？')) return;
+
+  chrome.storage.local.get(
+    ['nbfApiBaseUrl', 'nbfApiKey', 'nbfApiModel', 'nbfSystemPrompt', 'nbfPromptLibrary'],
+    (res) => {
+      const exportData = {
+        version: "1.0",
+        exportTime: new Date().toISOString(),
+        settings: {
+          gptBaseUrl: res.nbfApiBaseUrl || "",
+          gptApiKey: res.nbfApiKey || "",
+          gptModel: res.nbfApiModel || "",
+          customSystemPrompt: res.nbfSystemPrompt || ""
+        },
+        promptLibrary: res.nbfPromptLibrary || []
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nbf-settings-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  );
+});
+
+if (importConfigBtn) importConfigBtn.addEventListener('click', () => importConfigFile.click());
+
+if (importConfigFile) importConfigFile.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+      if (!data.settings) throw new Error("无效的配置文件格式");
+
+      const importedSettings = {
+        nbfApiBaseUrl: data.settings.gptBaseUrl || "",
+        nbfApiKey: data.settings.gptApiKey || "",
+        nbfApiModel: data.settings.gptModel || "",
+        nbfSystemPrompt: data.settings.customSystemPrompt || ""
+      };
+
+      // Merge Library
+      if (data.promptLibrary && Array.isArray(data.promptLibrary)) {
+        // Simple merge (overwrite if ID exists, else append?? No, let's just use ID to dedup or verify)
+        // Ideally we fetch current lib first.
+        chrome.storage.local.get(['nbfPromptLibrary'], (curr) => {
+          const currentLib = curr.nbfPromptLibrary || [];
+          // Merge logic: Add new items that don't exist
+          const newItems = data.promptLibrary.filter(ni => !currentLib.some(ci => ci.id === ni.id));
+          const mergedLib = [...newItems, ...currentLib]; // Add new ones to top or bottom? Using top for now.
+          importedSettings.nbfPromptLibrary = mergedLib;
+
+          chrome.storage.local.set(importedSettings, () => {
+            alert(`配置已导入！\n新增了 ${newItems.length} 条提示词`);
+            loadApiSettings(); // refresh UI
+            hidePanel(apiSettingsPanel);
+          });
+        });
+      } else {
+        chrome.storage.local.set(importedSettings, () => {
+          alert('配置已导入！');
+          loadApiSettings();
+          hidePanel(apiSettingsPanel);
+        });
+      }
+
+    } catch (err) {
+      alert("导入失败：" + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // Reset input
+});
+
+if (importLibraryBtn) importLibraryBtn.addEventListener('click', () => importLibraryFile.click());
+
+if (importLibraryFile) importLibraryFile.addEventListener('change', (e) => {
+  // Assuming simple JSON array import for library only
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+      let itemsToAdd = [];
+      if (Array.isArray(data)) {
+        itemsToAdd = data;
+      } else if (data.promptLibrary && Array.isArray(data.promptLibrary)) {
+        itemsToAdd = data.promptLibrary;
+      } else {
+        throw new Error('未找到有效的提示词列表数组');
+      }
+
+      if (itemsToAdd.length > 0) {
+        chrome.storage.local.get(['nbfPromptLibrary'], (curr) => {
+          const currentLib = curr.nbfPromptLibrary || [];
+          // Deduplicate by ID if present, or just append all
+          // To be safe, let's re-generate IDs if they clash or are missing
+          const validItems = itemsToAdd.map(it => ({
+            id: it.id || Date.now() + Math.random(),
+            text: it.text || '',
+            tags: it.tags || [],
+            createdAt: it.createdAt || Date.now()
+          })).filter(it => it.text);
+
+          const finalLib = [...validItems, ...currentLib];
+          chrome.storage.local.set({ nbfPromptLibrary: finalLib }, () => {
+            alert(`成功导入 ${validItems.length} 条提示词`);
+            loadPromptLibrary();
+          });
+        });
+      }
+    } catch (err) {
+      alert('导入失败: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+if (exportLibraryBtn) exportLibraryBtn.addEventListener('click', () => {
+  chrome.storage.local.get(['nbfPromptLibrary'], (res) => {
+    const lib = res.nbfPromptLibrary || [];
+    const blob = new Blob([JSON.stringify(lib, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nbf-prompts-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+});
+

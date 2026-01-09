@@ -35,6 +35,8 @@
         <span class="dot"></span>
         <span class="status-text">Ready</span>
       </div>
+      <!-- Settings Icon -->
+      <button id="settingsBtn" class="header-icon-btn" title="API 设置">⚙️</button>
     </header>
 
     <!-- Main Content -->
@@ -54,7 +56,9 @@
             <div class="import-tools">
               <button id="importTxtBtn" class="tool-btn" title="导入提示词文件">📄 导入提示词</button>
               <button id="importImagesBtn" class="tool-btn" title="选择单张或多张图片，支持自动匹配">🖼️ 导入图片</button>
-              <button id="importFolderBtn" class="tool-btn" title="智能优化提示词场景，助力生成更完美图像 (暂未发布)">🌟 提示词增强</button>
+              <button id="promptEnhanceBtn" class="tool-btn" title="使用 AI 优化提示词">✨ 提示词增强</button>
+              <button id="promptLibraryBtn" class="tool-btn" title="打开提示词库">📚 提示词库</button>
+              <button id="savePromptBtn" class="tool-btn" title="保存当前提示词到库">💾 保存</button>
             </div>
           </div>
         </label>
@@ -125,6 +129,77 @@
       </div>
     </main>
 
+    <!-- API Settings Panel -->
+    <div id="apiSettingsPanel" class="modal-panel hidden">
+      <div class="panel-header">
+        <span>⚙️ API 配置</span>
+        <button class="panel-close-btn" data-close="apiSettingsPanel">×</button>
+      </div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label>API 端点</label>
+          <input type="text" id="apiBaseUrl" class="panel-input" placeholder="https://api.siliconflow.cn">
+        </div>
+        <div class="form-group">
+          <label>API Key</label>
+          <div class="input-with-toggle">
+            <input type="password" id="apiKeyInput" class="panel-input" placeholder="sk-xxxxxxxx">
+            <button id="toggleApiKey" class="toggle-btn">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>模型</label>
+          <input type="text" id="apiModel" class="panel-input" placeholder="deepseek-ai/DeepSeek-R1-0528-Qwen3-8B">
+        </div>
+        <div class="panel-actions">
+          <button id="importConfigBtn" class="panel-btn-secondary">导入配置</button>
+          <button id="exportConfigBtn" class="panel-btn-secondary">导出配置</button>
+          <button id="saveApiSettingsBtn" class="panel-btn-primary">保存设置</button>
+        </div>
+        <input type="file" id="importConfigFile" accept=".json" style="display: none;">
+      </div>
+    </div>
+
+    <!-- Prompt Library Panel -->
+    <div id="promptLibraryPanel" class="modal-panel hidden">
+      <div class="panel-header">
+        <span>📚 提示词库</span>
+        <div class="panel-header-actions">
+          <button id="importLibraryBtn" class="panel-header-btn">导入</button>
+          <button id="exportLibraryBtn" class="panel-header-btn">导出</button>
+          <button id="clearLibraryBtn" class="panel-header-btn danger">清空</button>
+        </div>
+        <button class="panel-close-btn" data-close="promptLibraryPanel">×</button>
+      </div>
+      <div class="panel-body">
+        <div class="search-bar">
+          <input type="text" id="librarySearchInput" class="panel-input" placeholder="🔍 搜索文本或 #标签...">
+        </div>
+        <div id="libraryList" class="library-list">
+          <div class="empty-state">暂无保存的提示词</div>
+        </div>
+        <input type="file" id="importLibraryFile" accept=".json" style="display: none;">
+      </div>
+    </div>
+
+    <!-- Tag Input Panel -->
+    <div id="tagInputPanel" class="modal-panel small hidden">
+      <div class="panel-header">
+        <span>💾 保存提示词</span>
+        <button class="panel-close-btn" data-close="tagInputPanel">×</button>
+      </div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label>添加标签 (用逗号分隔)</label>
+          <input type="text" id="tagInputField" class="panel-input" placeholder="风格, 人物, 场景">
+        </div>
+        <div class="panel-actions">
+          <button id="cancelSavePrompt" class="panel-btn-secondary">取消</button>
+          <button id="confirmSavePrompt" class="panel-btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Footer Area (Relative) -->
     <footer id="dynamicFooter" class="footer-area">
       <div class="qr-section">
@@ -149,6 +224,7 @@
     </footer>
   </div>
 
+  <script src="config.js"></script>
   <script src="popup.js"></script>
 </body>
 
