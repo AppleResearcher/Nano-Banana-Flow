@@ -32,6 +32,11 @@ function debugLog(...args) {
 // 初始化时加载 Debug 模式
 loadDebugMode();
 
+// 清理可能残留的优化状态 (防止插件刷新后卡在 "优化中...")
+chrome.storage.local.remove(['enhancingState', 'enhancedResult', 'enhancingError']).then(() => {
+    console.log('[BG] 已清理残留的优化状态');
+});
+
 // 监听 storage 变化以实时同步 Debug 状态
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.debugMode) {
@@ -230,10 +235,145 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false;
     }
 
+    // --- 处理提示词优化请求 (Background) ---
+    if (request.action === 'enhancePrompt') {
+        console.log('[BG] 收到提示词优化请求');
+
+        // 立即返回，保持异步处理
+        handlePromptEnhancement(request.text, request.apiSettings);
+        sendResponse({ success: true });
+        return false;
+    }
+
     // 未知消息类型
     console.warn('[BG] 未知消息类型:', request.action);
     return false;
 });
+
+// 处理提示词优化
+async function handlePromptEnhancement(text, settings) {
+    try {
+        // 1. 设置状态为处理中
+        await chrome.storage.local.set({
+            enhancingState: 'PROCESSING',
+            enhancingError: null
+        });
+
+        let baseUrl = settings.nbfApiBaseUrl || 'https://api.siliconflow.cn/v1';
+        const apiKey = settings.nbfApiKey;
+        const model = settings.nbfApiModel || 'deepseek-ai/DeepSeek-V3';
+
+        // URL Normalization Logic
+        baseUrl = baseUrl.trim().replace(/\/+$/, ''); // Remove trailing slash
+
+        // Intelligent /v1 appending removed by user request. 
+        // User must provide exact Base URL.
+
+        console.log(`[BG] Final API Endpoint: ${baseUrl}/chat/completions`);
+
+        // Construct System Prompt
+        const systemPrompt = `你是一个 AI 绘画提示词优化专家。你的任务是将用户的描述转换为高质量的英文提示词。
+
+## 核心规则 (必须遵守):
+
+1.  **只输出提示词本身**：禁止输出任何解释、标题、前言、Markdown格式 (如 ** 或 ## 或 *)、引号、"Prompt 1:"前缀等。
+2.  **分隔符**：如果用户要求多张图 (如 "5张")，每段提示词之间必须用**单独一行的三个减号** \`---\` 分隔，且 \`---\` 前后不能有其他文字。
+3.  **数量匹配**：如果用户要求 N 张图，你必须输出恰好 N 段提示词。
+4.  **无空行开头**：输出的第一个字符必须是提示词内容，不能是空行或空格。
+5.  **参考图处理 (关键)**：如果用户的描述中暗示了参考图 (如"参考上传的图"、"原图的衣服"、"照着这张图")，说明用户已上传图片。你优化后的提示词**必须包含极具强制性的英文参照指令**，不能仅用 "referencing the image" 这种模糊表达。
+    - **强制性指令**：必须使用 Strong Verbs，例如 \`Make sure to include the people from the reference image\`, \`Strictly follow the character design in the reference image\`, \`Keep the exact facial features of the persons in the uploaded image\`。
+    - **具体细节**：如果用户提到"合影"、"这些人"，你必须明确写出 \`Generate an image of the specific group of people shown in the reference image\`。
+    - **特定要求**：如果用户要求"只参考衣服"或"不参考表情"，必须精确描述。例如：\`Keep the clothing style from the reference image exactly, but change the facial expression to [expression]\`。
+
+## 提示词结构建议 (内容层面):
+
+- 结构: 主体 + 环境/背景 + 风格 + 光照 + 技术参数
+- 技术词: 8k, highly detailed, masterpiece, cinematic lighting 等
+
+## 正确示例 (用户要求3张不同场景):
+
+A beautiful woman in a red dress, standing in a blooming garden, soft sunlight, 8k, highly detailed
+---
+A beautiful woman in a red dress, walking on a snowy mountain path, dramatic clouds, cinematic lighting, masterpiece
+---
+A beautiful woman in a red dress, sitting in a vintage cafe, warm ambient lighting, bokeh background, photorealistic
+
+## 错误示例 (绝对禁止):
+
+**Prompt 1:** xxx (禁止加前缀)
+Here are the prompts: (禁止加解释)
+\`\`\`xxx\`\`\` (禁止代码块)`;
+
+        const userMessage = `请优化以下描述为英文绘画提示词。严格按规则输出，不要加任何额外文字。
+
+用户描述: ${text}`;
+
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage }
+                ],
+                stream: false
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            let errMsg = `API Error: ${response.status}`;
+            try {
+                const errJson = JSON.parse(errText);
+                errMsg = errJson.error?.message || errMsg;
+            } catch (e) {
+                // If parse fails, use text snippet or generic
+                if (errText.trim().startsWith('<')) {
+                    errMsg += " (返回了 HTML，可能是 URL 填写错误，请检查是否少填了 /v1)";
+                } else {
+                    errMsg += ` (${errText.substring(0, 50)})`;
+                }
+            }
+            throw new Error(errMsg);
+        }
+
+        const dataText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(dataText);
+        } catch (e) {
+            if (dataText.trim().startsWith('<')) {
+                throw new Error("API 返回了 HTML 网页而非 JSON 数据。请检查 'API 端点' 设置，通常需要在末尾加上 /v1 (例如 https://your-api.com/v1)");
+            }
+            throw new Error("API 返回数据格式错误 (非 JSON)");
+        }
+
+        const improvedPrompt = data.choices?.[0]?.message?.content;
+
+        if (improvedPrompt) {
+            // 2. 设置状态为完成，并保存结果 (trim 去除首尾空白)
+            console.log('[BG] 提示词优化成功');
+            await chrome.storage.local.set({
+                enhancingState: 'COMPLETED',
+                enhancedResult: improvedPrompt.trim()
+            });
+        } else {
+            throw new Error('API 返回内容为空');
+        }
+
+    } catch (error) {
+        console.error('[BG] 提示词优化失败:', error);
+        // 3. 设置状态为失败
+        await chrome.storage.local.set({
+            enhancingState: 'FAILED',
+            enhancingError: error.message
+        });
+    }
+}
 
 // ========== 处理任务队列 ==========
 async function processQueue() {

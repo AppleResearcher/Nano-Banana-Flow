@@ -104,12 +104,32 @@ async function handleGenerateImage(prompt, images, directory, index, total) {
         const preGenerationImageCount = countValidImages();
         console.log(`[步骤 0.5/${index}] 当前有效图片数量: ${preGenerationImageCount}`);
 
+        // 【新增】检查是否有残留的预览图，如果有则尝试清理或等待
+        const residualPreviews = document.querySelectorAll('img[src^="blob:"], img[src^="data:"], [class*="preview"], [class*="thumbnail"]');
+        if (residualPreviews.length > 0) {
+            console.warn(`[步骤 0.6/${index}] ⚠️ 检测到 ${residualPreviews.length} 张残留预览图，尝试清理...`);
+            // 尝试点击所有移除按钮（如果有的话）
+            const removeBtns = document.querySelectorAll('button[aria-label*="Remove"], button[aria-label*="Delete"], .remove-image-icon');
+            removeBtns.forEach(btn => btn.click());
+            await sleep(1000);
+
+            // 再次检查
+            const remaining = document.querySelectorAll('img[src^="blob:"], [class*="preview"]');
+            if (remaining.length > 0) {
+                console.warn(`[步骤 0.6/${index}] ⚠️ 清理后仍有残留，可能影响后续上传判定`);
+            } else {
+                console.log(`[步骤 0.6/${index}] ✅ 残留清理完成`);
+            }
+        }
+
         // ========== 步骤 0.8: 上传参考图 (如果存在) ==========
         if (images && images.length > 0) {
             console.log(`[步骤 0.8/${index}] 正在上传 ${images.length} 张参考图...`);
             await uploadImagesToGemini(images);
             console.log(`[步骤 0.8/${index}] 参考图上传完成，等待解析...`);
             await sleep(2000); // 给 Gemini 一点处理图片的时间
+        } else {
+            console.log(`[步骤 0.8/${index}] 无关联图片，跳过上传流程`);
         }
 
         // ========== 步骤 0.9: 强制检查模型模式 (避免 Fast 模式) ==========
@@ -707,6 +727,22 @@ async function waitForIdle() {
     });
 }
 
+// 辅助函数：获取当前输入区域范围内的预览图数量
+function getScopedPreviewImages() {
+    // 1. 尝试找到输入区域的容器 (通常包含 input-area 类或是在底部工具栏)
+    const inputContainer = document.querySelector('div[class*="input-area"], footer, .input-area-container') || document.body;
+
+    // 2. 在容器内查找预览图 (排除历史记录中的图片)
+    // 历史记录中的图片通常在 chat-history 或 similar 容器中，而 footer/input-area 是独立的
+    const previews = inputContainer.querySelectorAll('img[src^="blob:"], img[src^="data:"], [class*="preview"], [class*="thumbnail"]');
+
+    // 3. 过滤掉明显不是预览图的元素 (比如头像)
+    return Array.from(previews).filter(el =>
+        (el.src && el.src.startsWith('blob:')) ||
+        (el.style && el.style.backgroundImage && el.style.backgroundImage.includes('blob:'))
+    );
+}
+
 // ========== 核心函数：上传图片到 Gemini (粘贴方案) ==========
 async function uploadImagesToGemini(base64Images) {
     console.log('[Upload] 🚀 开始粘贴上传流程 (Plan D)，共', base64Images.length, '张图片');
@@ -728,33 +764,66 @@ async function uploadImagesToGemini(base64Images) {
     inputArea.focus();
     await sleep(200);
 
+    // 【新增】记录上传前的初始预览图数量 (基准值)
+    const initialPreviews = getScopedPreviewImages();
+    const initialCount = initialPreviews.length;
+    console.log(`[Upload] 📊 初始预览图数量: ${initialCount} (将作为增量检测的基准)`);
+
     // 2. 转换为 File 对象并逐个粘贴
     // 为了稳定性，建议逐张粘贴
     for (let i = 0; i < base64Images.length; i++) {
         const b64 = base64Images[i];
-        console.log(`[Upload] 处理第 ${i + 1}/${base64Images.length} 张图片...`);
+        console.log(`[Upload] 🔄 正在处理第 ${i + 1}/${base64Images.length} 张图片...`);
 
         const resp = await fetch(b64);
         const blob = await resp.blob();
         const file = new File([blob], `ref_${i + 1}.png`, { type: 'image/png' });
 
-        debugLog(`  文件已创建: ${file.name}, 大小: ${Math.round(file.size / 1024)}KB, 类型: ${file.type}`);
+        debugLog(`  📄 文件准备就绪: ${file.name}`);
+        debugLog(`  📏 大小: ${(file.size / 1024).toFixed(2)}KB`);
+        debugLog(`  🏷️ 类型: ${file.type}`);
 
         await uploadSingleImageViaPaste(inputArea, file);
 
+        console.log(`[Upload] ✅ 第 ${i + 1} 张图片已粘贴，等待缓冲...`);
         // 间隔一下，避免处理冲突
-        await sleep(1000);
+        await sleep(1500); // 稍微增加间隔，确保多图稳定性
     }
 
-    console.log('[Upload] ⏳ 等待 Gemini 处理文件...');
-    await sleep(2000);
+    console.log(`[Upload] ⏳ 全部 ${base64Images.length} 张图片粘贴完成，等待 Gemini 解析...`);
 
-    // 检查是否上传成功
-    const preview = document.querySelector('img[src^="blob:"], img[src^="data:"], [class*="preview"], [class*="thumbnail"]');
-    if (preview) {
-        console.log('[Upload] ✅ 检测到预览图，上传成功');
+    // 增加重试检测机制 (最多等待 20 秒)
+    // 目标数量 = 初始数量 + 本次上传数量
+    const targetCount = initialCount + base64Images.length;
+    let currentCount = 0;
+
+    for (let attempt = 1; attempt <= 20; attempt++) {
+        await sleep(1000);
+
+        const currentPreviews = getScopedPreviewImages();
+        currentCount = currentPreviews.length;
+
+        if (currentCount >= targetCount) {
+            console.log(`[Upload] ✅ 在第 ${attempt} 次重试时检测到 ${currentCount} 张预览图 (目标: >=${targetCount})`);
+            console.log('[Upload] 🎉 预览图数量验证通过！');
+            break;
+        } else {
+            console.log(`[Upload] ⏳ 等待预览图... 当前: ${currentCount}, 目标: ${targetCount} (${attempt}/20)`);
+        }
+    }
+
+    if (currentCount >= targetCount) {
+        debugLog(`[Upload] 最终确认预览图数量: ${currentCount}`);
+        console.log('[Upload] ✅ 图片上传流程确认成功');
+        // 再额外等待一下，确保完全渲染
+        await sleep(1000);
     } else {
-        console.warn('[Upload] ⚠️ 未检测到预览图，可能需要人工确认');
+        // 如果虽然没达到目标数量，但比初始数量多了，说明至少上传了一部分，可以考虑放行（或者是Gemini合并了图片）
+        if (currentCount > initialCount) {
+            console.warn(`[Upload] ⚠️ 警告: 仅检测到 ${currentCount} 张图 (初始: ${initialCount}, 目标: ${targetCount})，但已有新增，尝试继续...`);
+        } else {
+            throw new Error(`[Upload] ❌ 严重错误: 上传后预览图数量未增加 (初始: ${initialCount}, 当前: ${currentCount})`);
+        }
     }
 
     console.log('[Upload] ✅ 粘贴流程完成');

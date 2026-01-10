@@ -26,7 +26,7 @@
         </h1>
         <h2 class="title-cn">
           大香蕉批量生图神器
-          <span class="version-badge">v1.3.1</span>
+          <span class="version-badge">v2.0.1</span>
         </h2>
       </div>
 
@@ -35,8 +35,6 @@
         <span class="dot"></span>
         <span class="status-text">Ready</span>
       </div>
-      <!-- Settings Icon -->
-      <button id="settingsBtn" class="header-icon-btn" title="API 设置">⚙️</button>
     </header>
 
     <!-- Main Content -->
@@ -46,7 +44,12 @@
         <label for="directoryInput">
           <span class="icon">📂</span> 保存目录 (默认为浏览器下载目录)
         </label>
-        <input type="text" id="directoryInput" placeholder="例如: my-project/slide1" class="glass-input directory-input">
+        <div class="directory-row">
+          <input type="text" id="directoryInput" placeholder="例如: my-project/slide1"
+            class="glass-input directory-input">
+          <button id="selectDirBtn" class="tool-btn icon-only-small" data-tooltip-below="选择目录">📁</button>
+          <button id="settingsBtn" class="tool-btn icon-only-small" data-tooltip-below="API 设置">⚙️</button>
+        </div>
       </div>
 
       <!-- Prompts Input -->
@@ -54,20 +57,19 @@
         <label for="promptInput">
           <div class="label-with-actions">
             <div class="import-tools">
-              <button id="importTxtBtn" class="tool-btn" title="导入提示词文件">📄 导入提示词</button>
-              <button id="importImagesBtn" class="tool-btn" title="选择单张或多张图片，支持自动匹配">🖼️ 导入图片</button>
-              <button id="promptEnhanceBtn" class="tool-btn" title="使用 AI 优化提示词">✨ 提示词增强</button>
-              <button id="promptLibraryBtn" class="tool-btn" title="打开提示词库">📚 提示词库</button>
-              <button id="savePromptBtn" class="tool-btn" title="保存当前提示词到库">💾 保存</button>
+              <button id="importTxtBtn" class="tool-btn icon-only" data-tooltip="导入提示词文件 (.txt)">📄</button>
+              <button id="importImagesBtn" class="tool-btn icon-only" data-tooltip="导入参考图片">🖼️</button>
+              <button id="promptEnhanceBtn" class="tool-btn icon-only" data-tooltip="AI 提示词增强">✨</button>
+              <button id="promptLibraryBtn" class="tool-btn icon-only" data-tooltip="提示词库">📚</button>
+              <button id="savePromptBtn" class="tool-btn icon-only" data-tooltip="保存当前提示词">💾</button>
             </div>
           </div>
         </label>
-        <textarea id="promptInput" class="glass-input prompt-textarea" placeholder="在此输入提示词，一行对应一张图片。
-配合&quot;导入图片&quot;使用时，请确保图片文件名以序号开头 (如: 1_xxx.jpg)，将自动匹配到第1行提示词。
+        <textarea id="promptInput" class="glass-input prompt-textarea" placeholder="在此输入提示词，支持文本和 JSON 格式批量生图。
 
-示例：
-一只可爱的小猫
-一只在吃香蕉的大猩猩"></textarea>
+📝 分隔方式升级：支持 --- 、||| 、⸻ 三种分隔符
+
+✨ v2.0 新增：AI优化提示词、一键去水印、点选上传参考图"></textarea>
         <!-- Progress Section (Relocated) -->
         <div id="progressArea" class="progress-section hidden">
           <div class="progress-info">
@@ -81,12 +83,15 @@
         <div id="promptCount" class="prompt-count">0 条提示词已被识别，随时可以开始</div>
         <div id="matchStatus" class="match-status hidden">已关联 0 张参考图</div>
         <div id="matchDetails" class="match-details hidden"></div>
+        <!-- Prompt Blocks Container (New) -->
+        <div id="promptBlocksContainer" class="prompt-blocks-container hidden"></div>
 
         <!-- Hidden Inputs -->
         <input type="file" id="txtFileInput" accept=".txt" style="display: none;">
         <input type="file" id="imageFileInput" accept="image/*" multiple style="display: none;">
         <input type="file" id="folderInput" webkitdirectory directory style="display: none;">
         <input type="file" id="manualWatermarkInput" accept="image/*" multiple style="display: none;">
+        <input type="file" id="manualImageInput" accept="image/*" multiple style="display: none;">
       </div>
 
       <!-- Action Area -->
@@ -99,7 +104,7 @@
           <span class="btn-icon">⚡</span>
           <span class="btn-text">去水印</span>
         </button>
-        <button id="clearBtn" class="btn-secondary" title="清空提示词">
+        <button id="clearBtn" class="btn-secondary" data-tooltip="清空提示词">
           <span class="btn-icon">🗑️</span>
           <span class="btn-text">清空</span>
         </button>
@@ -137,8 +142,16 @@
       </div>
       <div class="panel-body">
         <div class="form-group">
-          <label>API 端点</label>
-          <input type="text" id="apiBaseUrl" class="panel-input" placeholder="https://api.siliconflow.cn">
+          <label>API 服务商</label>
+          <select id="apiProviderSelect" class="panel-input" style="margin-bottom: 8px;">
+            <option value="siliconflow">SiliconFlow (硅基流动)</option>
+            <option value="deepseek">DeepSeek Official</option>
+            <option value="openai">OpenAI Official</option>
+            <option value="custom">自定义...</option>
+          </select>
+          <label>API 端点 (Base URL)</label>
+          <input type="text" id="apiBaseUrl" class="panel-input" placeholder="https://api.siliconflow.cn/v1">
+          <div class="input-helper">⚠️ 请务必包含完整的版本后缀 (如 /v1)，插件不再自动补全</div>
         </div>
         <div class="form-group">
           <label>API Key</label>
@@ -149,7 +162,12 @@
         </div>
         <div class="form-group">
           <label>模型</label>
-          <input type="text" id="apiModel" class="panel-input" placeholder="deepseek-ai/DeepSeek-R1-0528-Qwen3-8B">
+          <select id="apiModelSelect" class="panel-input" style="margin-bottom: 8px;">
+            <option value="deepseek-ai/DeepSeek-R1-0528-Qwen3-8B">DeepSeek R1 (Qwen3-8B)</option>
+            <option value="THUDM/GLM-4.1V-9B-Thinking">GLM-4.1V-9B-Thinking (多模态)</option>
+            <option value="custom">自定义...</option>
+          </select>
+          <input type="text" id="apiModel" class="panel-input" placeholder="自定义模型名称">
         </div>
         <div class="panel-actions">
           <button id="importConfigBtn" class="panel-btn-secondary">导入配置</button>
@@ -192,6 +210,7 @@
         <div class="form-group">
           <label>添加标签 (用逗号分隔)</label>
           <input type="text" id="tagInputField" class="panel-input" placeholder="风格, 人物, 场景">
+          <div id="tagSuggestions" class="suggestions-list hidden"></div>
         </div>
         <div class="panel-actions">
           <button id="cancelSavePrompt" class="panel-btn-secondary">取消</button>
@@ -221,6 +240,8 @@
           </div>
         </div>
       </div>
+      <!-- Pagination Dots -->
+      <div id="footerPaginationDots" class="footer-pagination-dots"></div>
     </footer>
   </div>
 

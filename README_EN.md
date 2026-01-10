@@ -3,10 +3,12 @@
 > **As long as the banana 🍌 works, generating images till dawn.**
 >
 > Batch Image Generation Tool for Gemini AI
+>
+> 【My Blog】More AI tools and tutorials: https://gt.topgpt.us
 
-![Nano Banana Flow Preview](https://gt.topgpt.us/upload/NBF-Pro-v1.3.1.png)
+![Nano Banana Flow Preview](https://gt.topgpt.us/upload/NBF-Pro-v2.0.1.png)
 
-[![Version](https://img.shields.io/badge/version-1.3.1-gold.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
+[![Version](https://img.shields.io/badge/version-2.0.1-gold.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
 [![Chrome](https://img.shields.io/badge/Chrome-Extension-blue.svg)](https://github.com/AppleResearcher/Nano-Banana-Flow)
 
 [中文说明](README.md)
@@ -15,35 +17,58 @@
 
 A powerful Chrome extension designed to help you batch generate images on Gemini with automatic downloading, completely freeing your hands.
 
-## ✨ Features
+---
 
-- 🎨 **Batch Generation**: Input multiple prompts at once and generate them automatically one by one.
-- 📥 **Auto Download**: Automatically download images after generation, supporting custom save directories.
-- 📄 **TXT Import**: [v1.2.0+] One-click import of massive prompts from local TXT files.
-- 🖼️ **Image-to-Image**: [v1.2.0+] Full support for reference images! Images larger than 1MB are auto-compressed to 1024px to prevent upload timeouts.
-    3.  **Import Reference Images (Optional)**: Click "🖼️ Import Images" if you need image-to-image generation.
-        *   **Flexible Naming Rules**: Just ensure the filename **starts with a number**, which corresponds to the line number of the prompt.
-        *   **Examples**:
-            *   `1_cat.jpg` -> Matches the 1st prompt
-            *   `1-photo.png` -> Matches the 1st prompt
-            *   `01.jpeg` -> Matches the 1st prompt
-            *   `2_dog.webp` -> Matches the 2nd prompt
-        *   Supports all common formats like jpg, png, webp, gif, etc.
-    - **Visual Feedback**: Preview associated images for each task before generation.
-- ⚡ **Watermark Removal**: [v1.3.0+] Built-in watermark removal lab to quickly remove Gemini watermarks from generated images.
-- 📊 **Real-time Progress**: Intuitive progress bar showing generation status.
-- 💾 **Smart Save**: Automatically saves your last input prompts
-- ⏹️ **Task Control**: Stop running tasks at any time
+## 🔥 v2.0 Highlights
+
+> [!IMPORTANT]
+> **v2.0 is a major version iteration** with multiple core features and significantly improved user experience!
+
+| 🆕 New Feature | Description |
+|----------------|-------------|
+| ✨ **AI Prompt Enhancement** | One-click optimize prompts, supports DeepSeek / GLM / OpenAI models |
+| 🖼️ **Click-to-Upload Reference Images** | Independent upload module below each prompt, no more filename matching hassle |
+| ⚡ **One-Click Watermark Removal** | Built-in watermark removal lab for quick Gemini watermark removal |
+| 📚 **Prompt Library** | Save frequently used prompts, quick access with import, search, and management |
+| 🎛️ **API Preset Panel** | SiliconFlow / DeepSeek / OpenAI one-click switch, custom also supported |
+| 📝 **JSON + Multi-Delimiter** | Supports JSON format prompts, compatible with `---`, `|||`, `⸻` delimiters |
 
 ---
 
-## 🚀 Usage Tips
-### Import & Matching (New in v1.2.0)
-1. **Prompt Import**: Click **[📄 Import]** to select a `.txt` file.
-2. **Image Matching**:
-   - Click **[🖼️ Image]** to batch select local images.
-   - **Naming Rule**: Filenames must start with `LineNumber_`. E.g., `1_style.jpg` matches the 1st prompt.
-   - **Multi-image**: Supports multiple images for a single line.
+## ✨ Core Features
+
+### 🎨 Batch Generation
+Input multiple prompts at once, fully automatic generation one by one, no manual supervision needed.
+
+### 📥 Auto Download
+Automatically download after generation, supports custom save directories.
+
+### ✨ AI Prompt Enhancement [v2.0+]
+Built-in AI optimization, one-click transform simple descriptions into professional English prompts.
+- Multi-model support: DeepSeek R1, GLM-4.1V, etc.
+- API provider presets: SiliconFlow / DeepSeek / OpenAI
+- Fully customizable: Bring your own API Key
+
+### 🖼️ Smart Image-to-Image
+- **[v2.0+] Click-to-Upload**: Independent upload module below each prompt
+- **[v1.2.0+] Smart Matching**: Filename `1_xxx.jpg` auto-matches first prompt
+- **Auto Compression**: Images larger than 1MB auto-compressed to 1024px
+
+### ⚡ One-Click Watermark Removal [v2.0+]
+Built-in watermark removal lab for quick Gemini watermark removal.
+
+### 📚 Prompt Library [v2.0+]
+- Save frequently used prompts, one-click access anytime
+- Keyword search support
+- Batch management and clear
+
+### 📊 Real-time Progress
+Intuitive progress bar showing generation status in real-time.
+
+### 💾 State Persistence [v2.0+]
+Prompts and reference images persist when popup is closed and reopened.
+
+---
 
 ## 📦 Installation
 
@@ -66,85 +91,164 @@ A powerful Chrome extension designed to help you batch generate images on Gemini
    - The extension icon will appear in Chrome toolbar
    - If not visible, click the puzzle icon 📌 to pin it
 
-## 🚀 Usage
+### 📥 Download Links
+
+| Channel | Link | Note |
+|---------|------|------|
+| **GitHub** | [Releases Download](https://github.com/AppleResearcher/Nano-Banana-Flow/releases) | Latest version |
+| **Baidu Pan** | [Baidu Pan](https://pan.baidu.com/s/1I9DMwu_NQVhAqIGeqgEa7g?pwd=saec) | Code: `saec` |
+| **Google Drive** | [Google Drive](https://drive.google.com/file/d/1aK4ls54SSc64WcK56pQpYyKxoIEXIiUv/view?usp=sharing) | No VPN needed |
+
+---
+
+## 🚀 Usage Guide
 
 ### Step 1: Open Gemini
 
 Visit [https://gemini.google.com/app](https://gemini.google.com/app) and make sure you're logged in
+
 > **Note**: v1.1.1 now fully supports Traditional Chinese interface (Hong Kong, Macau, Taiwan).
 
 ### Step 2: Prepare Prompts
 
-Enter one prompt per line in the extension input box:
+Enter prompts in the extension input box, supports multiple formats:
 
+**Method 1: One per line**
 ```
 A cute cat sitting by the window
 A golden retriever playing in the park
 A blooming rose flower
 ```
 
-### Step 3: Start Generation
+**Method 2: Triple-dash delimiter**
+```
+A cute cat sitting by the window
+---
+A golden retriever playing in the park
+---
+A blooming rose flower
+```
 
-1. Click the extension icon to open the interface
-2. Paste or type your prompts (one per line)
-3. Optional: Set save directory
-4. Click the "🎨 Batch Generate" button
-5. Wait for automatic generation and download
+**🌟 Method 3: AI Prompt Enhancement [Highly Recommended]**
 
-### Step 4: Check Results
+> [!TIP]
+> **One-click batch generate multi-angle, multi-environment prompts!** Just input a simple description, AI automatically generates professional English prompts.
 
-- Images are automatically downloaded to your default download folder (or your specified directory)
-- File naming format: `page1.png`, `page2.png`, `page3.png`...
+**Example: Generate 5 different angle portraits**
+
+Input:
+```
+A girl, five images, 5 different angles and environments
+```
+
+AI auto-generates five different versions with `---` separators, supports combining with reference images.
+
+**Steps:**
+1. Click ⚙️ to configure API Key (SiliconFlow free tier recommended)
+2. Input description + quantity requirement (e.g., "five images")
+3. Click ✨ button, wait for AI generation
+
+### Step 3: Add Reference Images (Optional)
+
+**Method 1: Click-to-Upload [Recommended]**
+- After entering prompts, upload modules appear below each prompt
+- Click `+` button to directly add reference images
+
+**Method 2: Batch Import + Smart Matching**
+- Name images as `1_xxx.jpg`, `2_xxx.jpg` format
+- Click 🖼️ Import, auto-matches to corresponding prompts
+
+### Step 4: Start Generation
+
+1. Click "🎨 Batch Generate" button
+2. Wait for automatic generation and download
+3. Images save to default download directory (or your specified directory)
 
 ### Step 5: Watermark Removal (Optional)
 
-1. After batch generation completes, a prompt will appear asking if you want to remove watermarks
-2. Click "OK", then manually click the **"⚡ Watermark"** button on the extension
-3. Select the images to process in the file picker (multi-select supported)
-4. Processed images will be automatically downloaded with `_wr` suffix
-
-> **Tip**: You can also click the "⚡ Watermark" button anytime to process any images.
+1. After batch generation completes, a prompt will appear
+2. Click "⚡ Watermark Removal" button
+3. Select images to process (multi-select supported)
+4. Processed images auto-download with `_wr` suffix
 
 ---
-
-## 📥 Download Rules
-
-### Batch Generation Downloads
-- **Default Path**: Browser's default download directory
-- **Custom Directory**: Enter a relative path at the top of the extension (e.g., `my-project/slide1`), images will save to `Downloads/my-project/slide1/`
-- **Naming Format**: `page1.png`, `page2.png`, `page3.png`...
-
-### Watermark Removal Downloads
-- **Save Location**: Browser's default download directory
-- **Naming Format**: Original filename + `_wr.png` suffix (e.g., `page1.png` → `page1_wr.png`)
-- **Note**: Due to browser security restrictions, watermark-removed files cannot be automatically saved to the original file's directory; manual relocation is required
 
 ## 🔧 FAQ
 
 ### Basic
 - **Q: What does this tool do?**
-  It allows you to input multiple prompts at once, automatically generating images one by one and downloading them locally, without manual intervention.
-- **Q: How to input prompts?**
-  One prompt per line.
-- **Q: Filename format?**
-  Sequential naming: `page1.png`, `page2.png`... Saved in your browser's default download folder.
+  Input multiple prompts at once, auto-generate images one by one and download locally, no manual intervention needed.
+
+- **Q: How to use AI Prompt Enhancement?**
+  1. Click ⚙️ to configure API Key (SiliconFlow recommended)
+  2. Input description, click ✨ button
+  3. AI auto-generates professional English prompts
+
+- **Q: How to match reference images to prompts?**
+  - **v2.0 New Method [Recommended]**: After entering prompts, **click-to-upload modules** appear below each prompt, directly click `+` to add reference images - no renaming needed, more convenient!
+  - **Original Method [Fully Compatible]**: Name images `1_xxx.jpg` → auto-matches first prompt, still works with batch import
 
 ### Troubleshooting
 - **Q: Extension can't find the input field?**
-  1. Ensure you are on `https://gemini.google.com/app`.
-  2. **Refresh the page** (issues often occur if the input box hasn't loaded yet).
-  3. Check if your network node redirects the URL.
-- **Q: My interface is in Traditional Chinese?**
-  Please upgrade to **v1.1.1** or higher (fixed compatibility). If issues persist, try temporarily switching your system/account language to English or Simplified Chinese.
-- **Q: Files are downloaded as .html?**
-  This is because the browser blocked automatic downloads. Click the "Lock" icon in the address bar -> Site Settings -> **Allow Automatic downloads**.
-- **Q: Sidebar blocking the view?**
-  Click the extension icon to toggle the sidebar. This won't interrupt the task.
+  1. Ensure you're on `https://gemini.google.com/app`
+  2. **Refresh the page** (often the input box hasn't loaded yet)
 
-### Downloads
-*   **GitHub Releases**: [Download Here](https://github.com/AppleResearcher/Nano-Banana-Flow/releases) (Latest)
-*   **Baidu Pan**: [Download](https://pan.baidu.com/s/1I9DMwu_NQVhAqIGeqgEa7g?pwd=saec) (Code: `saec`)
-*   **Google Drive**: [Download](https://drive.google.com/file/d/1aK4ls54SSc64WcK56pQpYyKxoIEXIiUv/view?usp=sharing)
+- **Q: Files downloaded as .html?**
+  Click the "Lock" icon in address bar → Site Settings → **Allow Automatic downloads**
+
+- **Q: API Prompt Enhancement error?**
+  Check if API endpoint includes `/v1` suffix (e.g., `https://api.siliconflow.cn/v1`)
+
+---
+
+## 📝 Changelog
+
+### v2.0.1 (2026-01-10) 🚀 Major Update
+- ✨ **AI Prompt Enhancement**: One-click optimize, supports DeepSeek / GLM / OpenAI models
+- 🖼️ **Click-to-Upload Reference Images**: Independent upload module below each prompt
+- ⚡ **One-Click Watermark Removal**: Built-in watermark removal lab for quick Gemini watermark removal
+- 📚 **Prompt Library**: Save, search, one-click access to frequently used prompts
+- 🎛️ **API Preset Panel**: Provider + Model dual dropdown, quick switch
+- 📝 **JSON + Multi-Delimiter**: Supports JSON format, compatible with `---`, `|||`, `⸻`
+- 💾 **State Persistence**: Prompts and reference images no longer lost on close
+- 🚀 **Startup Speed Optimization**: Instant open achieved, smoother experience
+- 🔧 **Many Bug Fixes**: First line empty, block refresh, state residue issues
+
+### v1.2.0 (2025-12-24) 🎄 Christmas Special Edition
+- 🎨 **Compact UI Redesign**: More refined interface, better space utilization
+- 🖼️ **Smart Image Matching**: Filename auto-matches prompts
+- 📄 **TXT Quick Import**: One-click import massive prompts
+- 📣 **Dynamic Announcement Bar**: Bottom supports remote configuration
+
+### v1.1.1 (2025-12-14)
+- ✅ Full support for Traditional Chinese interface (Hong Kong, Macau, Taiwan)
+- ✅ Fixed button recognition in Traditional Chinese environment
+
+### v1.1.0 (2025-12-05)
+- ✅ Fixed initialization error
+- ✅ Enhanced debug logs
+- ✅ Optimized download flow
+
+---
+
+## ❤️ Special Thanks
+
+The growth of Nano Banana Flow is inseparable from the enthusiastic support of the community. Special thanks to the following partners for providing key feedback and testing help during version iterations:
+
+| Contributor | Contribution |
+| :--- | :--- |
+| **@RDR摊主** | Suggested progress bar fix |
+| **@爱是指引** | Suggested JSON format prompt support |
+| **@豆师傅** | Suggested watermark removal feature |
+| **@玄彬的玄** | Donation + Multiple improvement feedback |
+| **@Monica** | Donation support |
+| **@AI～my** | Donation support |
+| **@Moon** | Donation support |
+| **Anonymous N** | Donation support and other suggestions |
+
+*(Too many to list, thanks again to all supporters! You make this tool better!)*
+
+---
 
 ## 📁 Project Structure
 
@@ -157,7 +261,8 @@ Nano-Banana-Flow/
 ├── content.js         # Content script (core)
 ├── background.js      # Background service
 ├── icons/             # Icon assets
-└── images/            # Theme images
+├── images/            # Theme images
+└── lib/               # Feature libraries (watermark removal, etc.)
 ```
 
 ## 🛠️ Tech Stack
@@ -166,49 +271,6 @@ Nano-Banana-Flow/
 - **Content Script**: DOM manipulation and page interaction
 - **Service Worker**: Background task management
 - **Chrome APIs**: Downloads API, Storage API
-
-## 📝 Changelog
-
-### v1.3.1 (2025-01-09)
-- ✅ **Smart Delimiters**: Prompts now support `---`, `|||`, `⸻` as delimiters. Multi-line JSON is also correctly parsed.
-- ✅ **Auto Image Compression**: Reference images larger than 1MB are auto-compressed to 1024px to prevent upload timeouts.
-- ✅ **First-Use Onboarding**: New users see a 3-step carousel guide when opening the extension.
-- ✅ **Update Refresh Prompt**: After install/update, a refresh prompt appears on open Gemini pages.
-- ✅ **Asset Optimization**: Background and QR code images converted to WebP, reducing total size by 90%.
-
-### v1.3.0 (2025-01-08)
-- ✅ **Watermark Removal**: New watermark removal lab feature to quickly remove Gemini watermarks.
-- ✅ **Progress Bar Optimization**: Redesigned progress bar layout, no longer blocked by other elements.
-- ✅ **State Persistence**: Prompts and reference images are preserved when the popup is closed and reopened.
-
-### v1.2.0 (2025-12-24)
-- ✅ **Compact UI**: Redesigned for higher information density and better aesthetics.
-- ✅ **Smart Image Matching**: Auto-match reference images via filename (e.g., `1_cat.jpg`).
-- ✅ **Dynamic Footer**: Cloudflare Worker integration for real-time announcements and tool links.
-
-### v1.1.1 (2025-12-14)
-- ✅ Added full support for Traditional Chinese (Hong Kong, Macau, Taiwan) interface
-- ✅ Fixed issue where "Send" and "Stop" buttons were unrecognized in Traditional Chinese
-- ✅ Added compatibility for URL parameters like `?hl=zh-TW`
-- ⚠️ Note: Hong Kong, Macau, Taiwan regions tested; other regions pending verification
-
-### v1.1.0 (2025-12-05)
-- ✅ Fixed statusIndicator missing initialization error
-- ✅ Enhanced message passing debug logs
-- ✅ Optimized download flow error handling
-- ✅ Cleaned up redundant code and documentation
-
-### v1.0.1
-- Initial release
-- Batch image generation
-- Auto download functionality
-- Progress display
-
-## ☕ Buy Me a Coffee
-
-If this tool has helped you, feel free to buy me a coffee. Your support keeps me motivated to keep improving it!
-
-![Appreciation QR Code](https://gt.topgpt.us/upload/qr2.png)
 
 ---
 

@@ -12,6 +12,21 @@ const EXTENSION_VERSION = '1.3.1';
 // ============================================
 let debugMode = false;
 
+// ============================================
+// 立即检查演示模式 - 在 DOM 解析前隐藏公告栏防止闪烁
+// ============================================
+chrome.storage.local.get(['demoMode'], (res) => {
+  if (res.demoMode) {
+    // 尽早隐藏，使用 MutationObserver 确保 footer 一出现就隐藏
+    const hideFooter = () => {
+      const footer = document.getElementById('dynamicFooter');
+      if (footer) footer.style.setProperty('display', 'none', 'important');
+    };
+    hideFooter();
+    document.addEventListener('DOMContentLoaded', hideFooter);
+  }
+});
+
 // 加载 Debug 模式状态
 async function loadDebugMode() {
   const res = await chrome.storage.local.get('debugMode');
@@ -19,7 +34,7 @@ async function loadDebugMode() {
   if (debugMode) console.log('[DEBUG] 🐛 Debug 模式已启用');
 }
 
-// 调试日志工具函数
+// 调试日志工具函数 - 同步检查内存变量
 function debugLog(...args) {
   if (debugMode) {
     console.log('[DEBUG]', ...args);
@@ -33,8 +48,10 @@ function debugLogTimed(label, ...args) {
   }
 }
 
-// 初始化时加载 Debug 模式
-loadDebugMode();
+// 初始化时加载 Debug 模式 (立即执行 IIFE 确保加载完成)
+(async () => {
+  await loadDebugMode();
+})();
 
 // GA4 Event Sender
 async function sendAnalyticsEvent(eventName, params = {}) {
@@ -133,11 +150,174 @@ const confirmSavePrompt = document.getElementById('confirmSavePrompt');
 let isRunning = false;
 let associatedImages = new Map(); // LineNumber -> File[]
 let pendingSaveText = ''; // Text to save when tag panel is shown
+// Prompt Block State
+let currentUploadIndex = null;
 
 // --- File Import Handlers ---
-
 if (importTxtBtn) importTxtBtn.addEventListener('click', () => txtFileInput.click());
 if (importImagesBtn) importImagesBtn.addEventListener('click', () => imageFileInput.click());
+
+if (manualImageInput) {
+  manualImageInput.addEventListener('change', async (e) => {
+    if (currentUploadIndex === null) return;
+    await processManualImages(e.target.files, currentUploadIndex);
+    manualImageInput.value = ''; // Reset
+  });
+}
+
+async function processManualImages(fileList, targetIndex) {
+  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+  if (files.length === 0) return;
+
+  if (!associatedImages.has(targetIndex)) {
+    associatedImages.set(targetIndex, []);
+  }
+  const existing = associatedImages.get(targetIndex);
+
+  // Checks limits
+  if (existing.length + files.length > 10) {
+    showError(`第 ${targetIndex} 条提示词的参考图已达上限 (10张)`);
+    return;
+  }
+
+  // Compress and Add
+  showStatus('Compressing...', true);
+  try {
+    const compressedFiles = await Promise.all(
+      files.map(f => compressImage(f)) // Use the existing compressImage function
+    );
+
+    compressedFiles.forEach(file => {
+      // Dedup by name
+      if (!existing.some(f => f.name === file.name)) {
+        existing.push(file);
+      }
+    });
+
+    console.log(`[Popup] 📸 手动添加图片到任务 ${targetIndex}:`, compressedFiles.length);
+    saveAssociatedImages();
+    updateMatchingUI(); // This should trigger UI refresh
+    showStatus('Ready', false);
+  } catch (err) {
+    console.error('Image processing failed', err);
+    showError('图片处理失败');
+    showStatus('Error', false);
+  }
+}
+
+// Directory Picker Logic
+// Directory Picker Logic
+const selectDirBtn = document.getElementById('selectDirBtn');
+if (selectDirBtn) {
+  selectDirBtn.addEventListener('click', async () => {
+    try {
+      const dirHandle = await window.showDirectoryPicker();
+      if (dirHandle && dirHandle.name) {
+        // User requested alert logic
+        const confirmMsg = `已选择文件夹: "${dirHandle.name}"\n\n⚠️ 注意: 根据浏览器安全限制，图片将保存到默认下载目录下的 "${dirHandle.name}" 子文件夹中。\n\n是否确认使用此路径?`;
+        if (confirm(confirmMsg)) {
+          directoryInput.value = dirHandle.name;
+          // Trigger save
+          chrome.storage.local.set({ saveDirectory: dirHandle.name });
+        }
+      }
+    } catch (err) {
+      // User cancelled or not supported
+      if (err.name !== 'AbortError') {
+        console.error('Directory selection failed:', err);
+        showError('无法调用目录选择器，请手动输入');
+      }
+    }
+  });
+}
+
+function renderPromptBlocks(prompts) {
+  const container = document.getElementById('promptBlocksContainer');
+  if (!container) return;
+
+  container.innerHTML = '';
+  if (prompts.length === 0) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  container.classList.remove('hidden');
+
+  prompts.forEach((promptText, index) => {
+    const taskIndex = index + 1;
+    const images = associatedImages.get(taskIndex) || [];
+
+    const block = document.createElement('div');
+    block.className = 'prompt-block';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'block-header';
+    header.innerHTML = `
+      <span class="block-index">#${taskIndex}</span>
+      <div class="block-text" title="${promptText}">${promptText.replace(/\n/g, ' ')}</div>
+    `;
+
+    // Images Area
+    const imgArea = document.createElement('div');
+    imgArea.className = 'block-images';
+
+    // Thumbnails
+    images.forEach((file, imgIdx) => {
+      // Wrapper for Image + Delete Btn
+      const wrapper = document.createElement('div');
+      wrapper.className = 'img-wrapper';
+
+      const thumb = document.createElement('img');
+      thumb.className = 'img-thumb';
+      thumb.src = URL.createObjectURL(file);
+      thumb.title = file.name;
+
+      // Delete Button (Overlay)
+      const delBtn = document.createElement('div');
+      delBtn.className = 'delete-btn';
+      delBtn.innerHTML = '×'; // Times symbol
+      delBtn.title = '移除此图片';
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`移除图片: ${file.name}?`)) {
+          removeManualImage(taskIndex, imgIdx);
+        }
+      };
+
+      wrapper.appendChild(thumb);
+      wrapper.appendChild(delBtn);
+      imgArea.appendChild(wrapper);
+    });
+
+    // Add Button
+    if (images.length < 15) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-img-btn-small';
+      addBtn.innerHTML = '+';
+      addBtn.title = '添加参考图 (max 15)';
+      addBtn.onclick = () => {
+        currentUploadIndex = taskIndex;
+        manualImageInput.click();
+      };
+      imgArea.appendChild(addBtn);
+    }
+
+    block.appendChild(header);
+    block.appendChild(imgArea);
+    container.appendChild(block);
+  });
+}
+
+function removeManualImage(taskIndex, imgIdx) {
+  const list = associatedImages.get(taskIndex);
+  if (list) {
+    list.splice(imgIdx, 1);
+    saveAssociatedImages();
+    updateMatchingUI();
+  }
+}
+
 
 if (txtFileInput) {
   txtFileInput.addEventListener('change', (e) => {
@@ -241,17 +421,56 @@ function updateMatchingUI() {
   } else {
     matchDetails.classList.add('hidden');
   }
+
+  // Sync Prompt Blocks if available
+  if (typeof renderPromptBlocks === 'function' && typeof parsePrompts === 'function' && promptsTextarea) {
+    renderPromptBlocks(parsePrompts(promptsTextarea.value));
+  }
 }
 
 // --- Original Logic ---
 
-// Auto-resize textarea and update count
+// Auto-resize and smart placeholder logic
 if (promptsTextarea) {
+  // Store original placeholder
+  const originalPlaceholder = promptsTextarea.placeholder;
+
+  // Check if we should show placeholder (5 minutes = 300000 ms, max 20 times)
+  chrome.storage.local.get(['lastPromptInteraction', 'placeholderSeenCount'], (res) => {
+    const lastTime = res.lastPromptInteraction || 0;
+    const seenCount = res.placeholderSeenCount || 0;
+    const minutesSinceLastUse = (Date.now() - lastTime) / (1000 * 60);
+
+    // Hide if: used within 5 minutes OR already seen 20+ times
+    if ((minutesSinceLastUse < 5 && lastTime > 0) || seenCount >= 20) {
+      promptsTextarea.placeholder = '';
+    } else {
+      // Increment seen count
+      chrome.storage.local.set({ placeholderSeenCount: seenCount + 1 });
+    }
+  });
+
+  // Hide placeholder on focus and record interaction time
+  promptsTextarea.addEventListener('focus', function () {
+    this.placeholder = '';
+    chrome.storage.local.set({ lastPromptInteraction: Date.now() });
+  });
+
   promptsTextarea.addEventListener('input', function () {
+    // Auto-resize
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
+
+    // Save to storage
     chrome.storage.local.set({ lastPrompts: this.value });
+
+    // Update Counts & Render Blocks
     updatePromptCount(this.value);
+
+    // Real-time block rendering
+    if (typeof renderPromptBlocks === 'function' && typeof parsePrompts === 'function') {
+      renderPromptBlocks(parsePrompts(this.value));
+    }
   });
 }
 
@@ -399,40 +618,51 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// 首次使用引导 - 轮播式 (v1.3.0)
+// 首次使用引导 - 轮播式 (v2.0)
 // ============================================
 function showOnboardingGuide() {
   const slides = [
     {
-      icon: '⚡',
-      title: '一键去水印',
+      icon: '✨',
+      title: 'AI 提示词增强',
       content: `
-        批量生成完成后，点击 <b>「⚡去水印」</b> 按钮<br>
-        选择需要处理的图片，自动去除 Gemini 水印<br>
-        处理后的文件名添加 <code>_wr</code> 后缀
+        输入中文描述，点击 <b>✨ 按钮</b><br>
+        AI 自动生成专业英文提示词<br>
+        支持 DeepSeek / GLM / OpenAI 等模型<br>
+        <small>首次使用需配置 API Key</small>
       `,
-      step: '第 1/3 步'
-    },
-    {
-      icon: '👋',
-      title: '欢迎使用大香蕉！',
-      content: `
-        <b>📂 保存目录</b>：可自定义下载路径<br>
-        <b>📄 导入提示词</b>：从 TXT 文件批量导入<br>
-        <b>🖼️ 导入图片</b>：支持图生图功能
-      `,
-      step: '第 2/3 步'
+      step: '第 1/4 步'
     },
     {
       icon: '🖼️',
-      title: '智能图生图',
+      title: '点选上传参考图',
       content: `
-        图片文件名以数字开头即可自动匹配：<br>
-        <code>1_cat.jpg</code> → 匹配第 1 行提示词<br>
-        <code>2_dog.png</code> → 匹配第 2 行提示词<br>
-        支持 jpg/png/webp/gif 等格式
+        输入提示词后，下方自动显示上传模块<br>
+        直接点击 <b>+</b> 按钮添加参考图<br>
+        无需改文件名，告别匹配困扰！<br>
+        <small>原有命名匹配方式仍兼容</small>
       `,
-      step: '第 3/3 步'
+      step: '第 2/4 步'
+    },
+    {
+      icon: '⚡',
+      title: '一键去水印 + 提示词库',
+      content: `
+        <b>⚡去水印</b>：快速去除 Gemini 水印<br>
+        <b>📚提示词库</b>：保存常用提示词<br>
+        <b>📝多分隔符</b>：支持 --- ||| ⸻ 和 JSON<br>
+      `,
+      step: '第 3/4 步'
+    },
+    {
+      icon: '💬',
+      title: '加入交流群',
+      content: `
+        不明之处？刷新插件扫码进群交流！<br><br>
+        <b>📌 备注"大香蕉"拉你进群</b><br>
+        氛围友好 · 高密度交流 · 长期共建 🤝
+      `,
+      step: '第 4/4 步'
     }
   ];
 
@@ -593,12 +823,28 @@ async function startGeneration(tasks, directory) {
   showProgress(0, tasks.length, '正在处理文件...');
   showStatus('Running', true);
 
+  debugLog('🚀 startGeneration 开始执行');
+  debugLog('📦 任务数量:', tasks.length);
+
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     // Prepare Tasks: Compress large images and convert to Base64
-    const processedTasks = await Promise.all(tasks.map(async (task) => {
-      const imgData = await Promise.all(task.images.map(async (file) => {
+    const processedTasks = await Promise.all(tasks.map(async (task, taskIndex) => {
+      debugLog(`📋 处理任务 #${taskIndex + 1}:`, {
+        prompt: task.prompt.substring(0, 30) + '...',
+        imageCount: task.images.length
+      });
+
+      const imgData = await Promise.all(task.images.map(async (file, imgIndex) => {
+        // 详细记录每个图片的信息
+        debugLog(`  🖼️ 图片 ${imgIndex + 1}:`, {
+          name: file.name || 'unknown',
+          size: file.size ? `${(file.size / 1024 / 1024).toFixed(2)}MB` : 'N/A',
+          type: file.type || 'unknown',
+          hasSize: typeof file.size === 'number'
+        });
+
         // 如果图片大于 1MB，先压缩
         if (file.size > 1024 * 1024) {
           const originalSizeMB = (file.size / 1024 / 1024).toFixed(2);
@@ -1076,6 +1322,16 @@ async function restoreStatus() {
 // ============================================
 
 async function updateDynamicFooter() {
+  // 先检查演示模式 - 如果开启则直接隐藏并返回
+  const demoModeRes = await new Promise(resolve =>
+    chrome.storage.local.get(['demoMode'], resolve)
+  );
+  const footer = document.getElementById('dynamicFooter');
+  if (demoModeRes.demoMode) {
+    if (footer) footer.style.setProperty('display', 'none', 'important');
+    return;
+  }
+
   const footerQrImg = document.getElementById('footerQrImg');
   const staticFooterText = document.getElementById('staticFooterText'); // Serves as Title
   const footerText = document.getElementById('footerText'); // Serves as secondary message or hidden
@@ -1139,71 +1395,102 @@ async function updateDynamicFooter() {
     }
 
     // ----------------------------------------------------
-    // 新版逻辑: 基于 Cards 数组的动态渲染
+    // 新版逻辑: 基于 Cards 数组的动态渲染 + 分页小圆点
     // ----------------------------------------------------
     if (config.cards && Array.isArray(config.cards) && config.cards.length > 0) {
-      // 1. 随机选择一张卡片 (支持权重或者纯随机，目前用纯随机)
-      const randomIndex = Math.floor(Math.random() * config.cards.length);
-      const card = config.cards[randomIndex];
-      console.log(`[NBF] Displaying Card #${randomIndex + 1}: ${card.name}`);
+      // Store cards globally for pagination
+      window.nbfFooterCards = config.cards;
+      window.nbfCurrentCardIndex = Math.floor(Math.random() * config.cards.length);
 
-      // 2. 渲染二维码 (映射到 footerQrImg)
-      if (card.qrCodeUrl && footerQrImg) {
-        footerQrImg.src = card.qrCodeUrl;
-        footerQrImg.style.display = "block";
-      } else if (footerQrImg) {
-        footerQrImg.style.display = "none";
-      }
+      // Render function for a specific card
+      const renderCard = (index) => {
+        const card = config.cards[index];
+        window.nbfCurrentCardIndex = index;
+        console.log(`[NBF] Displaying Card #${index + 1}: ${card.name}`);
 
-      // 3. 渲染标题 (映射到 staticFooterText)
-      if (staticFooterText) {
-        staticFooterText.textContent = card.qrTitle || "";
-      }
-      // 清空旧版 footerText 以免混淆
-      if (footerText) footerText.textContent = "";
-
-      // 4. 渲染 Link 1
-      if (footerLink) {
-        if (card.linkUrl) {
-          footerLink.href = card.linkUrl;
-          footerLink.textContent = card.linkText || "查看详情";
-          footerLink.classList.remove("hidden");
-          footerLink.style.display = "inline-block"; // Ensure visibility
-          const color = card.linkColor || "#ffffff";
-          footerLink.style.setProperty('color', color, 'important');
-          footerLink.style.fontWeight = card.linkBold ? "700" : "normal";
-        } else {
-          footerLink.style.display = "none";
+        // 2. 渲染二维码 (映射到 footerQrImg)
+        if (card.qrCodeUrl && footerQrImg) {
+          footerQrImg.src = card.qrCodeUrl;
+          footerQrImg.style.display = "block";
+        } else if (footerQrImg) {
+          footerQrImg.style.display = "none";
         }
-      }
 
-      // 5. 渲染 Link 2
-      if (footerLink2) {
-        if (card.linkUrl2) {
-          footerLink2.href = card.linkUrl2;
-          footerLink2.textContent = card.linkText2 || "更多";
-          footerLink2.classList.remove("hidden");
-          footerLink2.style.display = "inline-block";
-          const color2 = card.link2Color || "#ffffff";
-          footerLink2.style.setProperty('color', color2, 'important');
-          footerLink2.style.fontWeight = card.link2Bold ? "700" : "normal";
-        } else {
-          footerLink2.style.display = "none";
+        // 3. 渲染标题 (映射到 staticFooterText)
+        if (staticFooterText) {
+          staticFooterText.textContent = card.qrTitle || "";
         }
+        // 清空旧版 footerText 以免混淆
+        if (footerText) footerText.textContent = "";
+
+        // 4. 渲染 Link 1
+        if (footerLink) {
+          if (card.linkUrl) {
+            footerLink.href = card.linkUrl;
+            footerLink.textContent = card.linkText || "查看详情";
+            footerLink.classList.remove("hidden");
+            footerLink.style.display = "inline-block"; // Ensure visibility
+            const color = card.linkColor || "#ffffff";
+            footerLink.style.setProperty('color', color, 'important');
+            footerLink.style.fontWeight = card.linkBold ? "700" : "normal";
+          } else {
+            footerLink.style.display = "none";
+          }
+        }
+
+        // 5. 渲染 Link 2
+        if (footerLink2) {
+          if (card.linkUrl2) {
+            footerLink2.href = card.linkUrl2;
+            footerLink2.textContent = card.linkText2 || "更多";
+            footerLink2.classList.remove("hidden");
+            footerLink2.style.display = "inline-block";
+            const color2 = card.link2Color || "#ffffff";
+            footerLink2.style.setProperty('color', color2, 'important');
+            footerLink2.style.fontWeight = card.link2Bold ? "700" : "normal";
+          } else {
+            footerLink2.style.display = "none";
+          }
+        }
+
+        // 6. Apply Alignment (New Feature)
+        const linkContainer = document.querySelector('.link-group');
+        if (linkContainer) {
+          const align = card.linkAlign || "center";
+          if (align === 'left') linkContainer.style.justifyContent = 'flex-start';
+          else if (align === 'right') linkContainer.style.justifyContent = 'flex-end';
+          else linkContainer.style.justifyContent = 'center';
+        }
+
+        // 7. Hide Link 3 (Legacy unused in new cards logic)
+        if (footerLink3) footerLink3.style.display = "none";
+
+        // 8. Update pagination dots active state
+        const dotsContainer = document.getElementById('footerPaginationDots');
+        if (dotsContainer) {
+          dotsContainer.querySelectorAll('.dot').forEach((dot, i) => {
+            dot.classList.toggle('active', i === index);
+          });
+        }
+      };
+
+      // Render pagination dots (only if multiple cards)
+      const dotsContainer = document.getElementById('footerPaginationDots');
+      if (dotsContainer && config.cards.length > 1) {
+        dotsContainer.innerHTML = '';
+        config.cards.forEach((_, i) => {
+          const dot = document.createElement('span');
+          dot.className = 'dot' + (i === window.nbfCurrentCardIndex ? ' active' : '');
+          dot.addEventListener('click', () => renderCard(i));
+          dotsContainer.appendChild(dot);
+        });
+        dotsContainer.style.display = 'flex';
+      } else if (dotsContainer) {
+        dotsContainer.style.display = 'none';
       }
 
-      // 6. Apply Alignment (New Feature)
-      const linkContainer = document.querySelector('.link-group');
-      if (linkContainer) {
-        const align = card.linkAlign || "center";
-        if (align === 'left') linkContainer.style.justifyContent = 'flex-start';
-        else if (align === 'right') linkContainer.style.justifyContent = 'flex-end';
-        else linkContainer.style.justifyContent = 'center';
-      }
-
-      // 7. Hide Link 3 (Legacy unused in new cards logic)
-      if (footerLink3) footerLink3.style.display = "none";
-
+      // Initial render
+      renderCard(window.nbfCurrentCardIndex);
       return;
     }
   };
@@ -1384,8 +1671,34 @@ setTimeout(() => {
   });
 }, 500);
 
-// ============================================
-// API Settings & Advanced Features Logic
+// Toast Notification
+function showToast(message, duration = 3000) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    z-index: 10000;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    pointer-events: none;
+    transition: opacity 0.3s;
+  `;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// --- API Settings & Advanced Features Logic
 // ============================================
 
 // --- Panel Toggle Logic ---
@@ -1433,11 +1746,95 @@ if (cancelSavePrompt) cancelSavePrompt.addEventListener('click', () => hidePanel
 const DEFAULT_API_URL = 'https://api.siliconflow.cn/v1';
 const DEFAULT_MODEL = 'deepseek-ai/DeepSeek-V3';
 
+const API_PROVIDERS = {
+  siliconflow: 'https://api.siliconflow.cn/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  openai: 'https://api.openai.com/v1',
+  custom: ''
+};
+
+const MODEL_PRESETS = [
+  'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B',
+  'THUDM/GLM-4.1V-9B-Thinking'
+];
+
 function loadApiSettings() {
   chrome.storage.local.get(['nbfApiBaseUrl', 'nbfApiKey', 'nbfApiModel'], (res) => {
-    apiBaseUrl.value = res.nbfApiBaseUrl || '';
+    const savedUrl = res.nbfApiBaseUrl || '';
+    const savedModel = res.nbfApiModel || '';
+
+    apiBaseUrl.value = savedUrl;
     apiKeyInput.value = res.nbfApiKey || '';
-    apiModel.value = res.nbfApiModel || '';
+    apiModel.value = savedModel;
+
+    // Auto-detect provider
+    const foundProvider = Object.entries(API_PROVIDERS).find(([key, url]) => url === savedUrl && key !== 'custom');
+    if (foundProvider) {
+      apiProviderSelect.value = foundProvider[0];
+    } else {
+      apiProviderSelect.value = 'custom';
+    }
+
+    // Auto-detect model preset
+    if (apiModelSelect) {
+      if (MODEL_PRESETS.includes(savedModel)) {
+        apiModelSelect.value = savedModel;
+      } else {
+        apiModelSelect.value = 'custom';
+      }
+    }
+  });
+}
+
+// Model Preset Change Listener
+if (apiModelSelect) {
+  apiModelSelect.addEventListener('change', (e) => {
+    const selected = e.target.value;
+    if (selected === 'custom') {
+      apiModel.value = ''; // Clear for custom input
+    } else {
+      apiModel.value = selected;
+    }
+  });
+}
+
+// Logic to switch to 'custom' if user edits Model manually
+if (apiModel) {
+  apiModel.addEventListener('input', () => {
+    const currentVal = apiModel.value;
+    if (MODEL_PRESETS.includes(currentVal)) {
+      apiModelSelect.value = currentVal;
+    } else {
+      apiModelSelect.value = 'custom';
+    }
+  });
+}
+
+// Provider Change Listener
+if (apiProviderSelect) {
+  apiProviderSelect.addEventListener('change', (e) => {
+    const selected = e.target.value;
+    if (selected === 'custom') {
+      apiBaseUrl.value = ''; // Clear for custom input
+    } else if (API_PROVIDERS[selected]) {
+      apiBaseUrl.value = API_PROVIDERS[selected];
+    }
+  });
+}
+
+// Logic to switch to 'custom' if user edits Base URL manually
+if (apiBaseUrl) {
+  apiBaseUrl.addEventListener('input', () => {
+    // Check if current value matches any preset
+    const currentVal = apiBaseUrl.value;
+    const isPreset = Object.values(API_PROVIDERS).includes(currentVal);
+    if (!isPreset) {
+      apiProviderSelect.value = 'custom';
+    } else {
+      // Optional: Re-select preset if they typed it back exactly
+      const found = Object.entries(API_PROVIDERS).find(([k, v]) => v === currentVal && k !== 'custom');
+      if (found) apiProviderSelect.value = found[0];
+    }
   });
 }
 
@@ -1561,13 +1958,89 @@ if (librarySearchInput) librarySearchInput.addEventListener('input', (e) => {
 
     const keywords = q.split(/\s+/).filter(Boolean);
     const filtered = library.filter(it => {
-      const combined = (it.text + ' ' + (it.tags || []).join(' ')).toLowerCase();
+      // Allow searching for "tag" or "#tag"
+      const tagsStr = (it.tags || []).map(t => t + ' #' + t).join(' ');
+      const combined = (it.text + ' ' + tagsStr).toLowerCase();
       // AND Search logic
       return keywords.every(kw => combined.includes(kw));
     });
     renderLibraryList(filtered);
   });
 });
+
+// --- Tag Autocomplete Logic ---
+const tagSuggestions = document.getElementById('tagSuggestions');
+
+if (tagInputField) {
+  tagInputField.addEventListener('input', (e) => {
+    const val = e.target.value;
+    const lastPart = val.split(/[,，]/).pop().trim().toLowerCase();
+
+    if (!lastPart) {
+      if (tagSuggestions) tagSuggestions.classList.add('hidden');
+      return;
+    }
+
+    chrome.storage.local.get(['nbfPromptLibrary'], (res) => {
+      const library = res.nbfPromptLibrary || [];
+      const allTags = new Set();
+      library.forEach(item => {
+        if (item.tags) item.tags.forEach(t => allTags.add(t));
+      });
+
+      const matched = Array.from(allTags).filter(t => t.toLowerCase().includes(lastPart));
+      renderTagSuggestions(matched, lastPart);
+    });
+  });
+
+  // Close suggestions when clicking outside
+  document.addEventListener('click', (e) => {
+    if (tagSuggestions && !tagInputField.contains(e.target) && !tagSuggestions.contains(e.target)) {
+      tagSuggestions.classList.add('hidden');
+    }
+  });
+}
+
+function renderTagSuggestions(tags, match) {
+  if (!tagSuggestions) return;
+  if (tags.length === 0) {
+    tagSuggestions.classList.add('hidden');
+    return;
+  }
+
+  tagSuggestions.innerHTML = tags.map(tag => {
+    // Highlight match
+    const regex = new RegExp(`(${match})`, 'gi');
+    const highlighted = tag.replace(regex, '<span class="match">$1</span>');
+    return `<div class="suggestion-item" data-tag="${tag}">${highlighted}</div>`;
+  }).join('');
+
+  tagSuggestions.classList.remove('hidden');
+
+  // Add click listeners
+  tagSuggestions.querySelectorAll('.suggestion-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      // Find the tag from dataset (handle clicks on span)
+      const target = e.target.closest('.suggestion-item');
+      if (target) {
+        insertTag(target.dataset.tag);
+      }
+    });
+  });
+}
+
+function insertTag(tag) {
+  const currentVal = tagInputField.value;
+  const parts = currentVal.split(/[,，]/);
+  parts.pop(); // Remove partial tag
+  parts.push(tag); // Add full tag
+
+  // Reconstruct string with standard comma
+  tagInputField.value = parts.filter(p => p.trim()).join(', ') + ', ';
+  tagSuggestions.classList.add('hidden');
+  tagInputField.focus();
+}
+
 
 if (clearLibraryBtn) clearLibraryBtn.addEventListener('click', () => {
   if (confirm('⚠️ 确定要清空所有保存的提示词吗？此操作不可恢复！')) {
@@ -1579,6 +2052,67 @@ if (clearLibraryBtn) clearLibraryBtn.addEventListener('click', () => {
 
 // --- Prompt Enhancement Logic ---
 
+// --- Prompt Enhancement Logic (Background) ---
+
+// Check status on load
+document.addEventListener('DOMContentLoaded', () => {
+  checkEnhancementStatus();
+});
+
+// Listen for storage changes (real-time update if popup is open)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && (changes.enhancingState || changes.enhancedResult)) {
+    checkEnhancementStatus();
+  }
+});
+
+async function checkEnhancementStatus() {
+  const res = await chrome.storage.local.get(['enhancingState', 'enhancedResult', 'enhancingError']);
+  const state = res.enhancingState || 'IDLE';
+
+  if (!promptEnhanceBtn) return;
+
+  if (state === 'PROCESSING') {
+    promptEnhanceBtn.textContent = '✨ 优化中...';
+    promptEnhanceBtn.disabled = true;
+  } else if (state === 'COMPLETED') {
+    // Apply result (trim to remove any leading/trailing whitespace)
+    if (res.enhancedResult) {
+      const trimmedResult = res.enhancedResult.trim();
+      promptsTextarea.value = trimmedResult;
+      updatePromptCount(trimmedResult);
+
+      // Save to lastPrompts so it persists when popup is closed
+      chrome.storage.local.set({ lastPrompts: trimmedResult });
+
+      // Re-render prompt blocks to show all prompts
+      if (typeof renderPromptBlocks === 'function' && typeof parsePrompts === 'function') {
+        renderPromptBlocks(parsePrompts(trimmedResult));
+      }
+
+      showToast('✨ 提示词已优化！');
+
+      // Clear state so we don't re-apply on next open
+      // But user requested: "Optimized content should be preserved in the box". 
+      // Setting value here does that. Clearing state just stops the "Complete" toast from showing every time.
+      chrome.storage.local.remove(['enhancingState', 'enhancedResult', 'enhancingError']);
+    }
+
+    promptEnhanceBtn.textContent = '✨'; // Restore icon
+    promptEnhanceBtn.disabled = false;
+
+  } else if (state === 'FAILED') {
+    showError(`优化失败: ${res.enhancingError}`);
+    promptEnhanceBtn.textContent = '✨';
+    promptEnhanceBtn.disabled = false;
+    chrome.storage.local.remove(['enhancingState', 'enhancingError']);
+  } else {
+    // IDLE
+    promptEnhanceBtn.textContent = '✨';
+    promptEnhanceBtn.disabled = false;
+  }
+}
+
 if (promptEnhanceBtn) promptEnhanceBtn.addEventListener('click', async () => {
   const text = promptsTextarea.value.trim();
   if (!text) {
@@ -1589,64 +2123,26 @@ if (promptEnhanceBtn) promptEnhanceBtn.addEventListener('click', async () => {
   // Check API config
   const settings = await chrome.storage.local.get(['nbfApiBaseUrl', 'nbfApiKey', 'nbfApiModel']);
   if (!settings.nbfApiKey) {
-    showError('请先点击右上角 ⚙️ 配置 API Key');
+    const goRegister = confirm('⚠️ 请先配置 API Key\n\n推荐使用 SiliconFlow (硅基流动) 免费额度\n\n点击"确定"打开配置教程\n\n📌 不会填写？刷新插件扫码加群咨询~');
+    if (goRegister) {
+      window.open('https://gt.topgpt.us/archives/1767333998835', '_blank');
+    }
     showPanel(apiSettingsPanel);
     return;
   }
 
-  const baseUrl = settings.nbfApiBaseUrl || DEFAULT_API_URL;
-  const apiKey = settings.nbfApiKey;
-  const model = settings.nbfApiModel || DEFAULT_MODEL;
-
-  // Show loading state
-  const originalBtnText = promptEnhanceBtn.textContent;
+  // Show loading state immediately
   promptEnhanceBtn.textContent = '✨ 优化中...';
   promptEnhanceBtn.disabled = true;
 
-  try {
-    // Construct System Prompt (Hidden)
-    //const systemPrompt = "你是 AI 绘画提示词专家。请优化用户的提示词，使其更适合生成高质量图片。请直接输出优化后的英文提示词，不要包含任何解释或Markdown格式。";
-    const systemPrompt = "你是 AI 绘画提示词专家。请分析用户的原始提示词，保留核心意图，并补充细节（如光照、构图、风格、材质等），使其更适合生成高质量图片。请直接输出优化后的英文提示词，不要包含任何解释或Markdown格式。";
+  // Send to background
+  chrome.runtime.sendMessage({
+    action: 'enhancePrompt',
+    text: text,
+    apiSettings: settings
+  });
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `请优化以下提示词:\n${text}` }
-        ],
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error?.message || `API Error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const improvedPrompt = data.choices?.[0]?.message?.content;
-
-    if (improvedPrompt) {
-      promptsTextarea.value = improvedPrompt;
-      updatePromptCount(improvedPrompt);
-      showToast('✨ 提示词已优化！');
-    } else {
-      throw new Error('API 返回内容为空');
-    }
-
-  } catch (error) {
-    console.error('Prompt Enhancement Failed:', error);
-    showError(`优化失败: ${error.message}`);
-  } finally {
-    promptEnhanceBtn.textContent = originalBtnText;
-    promptEnhanceBtn.disabled = false;
-  }
+  // Note: Background will set enhancingState='PROCESSING', which triggers storage listener to keep UI consistent
 });
 
 // --- Import/Export Config Logic ---
